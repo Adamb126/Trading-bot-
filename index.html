@@ -355,7 +355,7 @@ function getKeys() {
   return { key: localStorage.getItem(LS_KEY) || '', secret: localStorage.getItem(LS_SECRET) || '' };
 }
 function isValidBase64(str) {
-  try { return str.length > 0 && btoa(atob(str)) === str; }
+  try { atob(str); return str.length > 0; }
   catch { return false; }
 }
 function hasKeys() {
@@ -638,11 +638,14 @@ async function refresh() {
             }).join('');
       } catch(e) {
         console.warn('Private API error:', e.message);
-        // Show a note but don't crash
+        const hint = e.message.includes('base64') ? 'Wrong field pasted — use the Private Key, not API Key'
+                   : e.message.includes('Invalid key') ? 'Permission denied — enable Query Funds on your Kraken key'
+                   : e.message.includes('EAPI') ? 'Invalid API key — check and re-enter in ⚙ API KEYS'
+                   : e.message;
         ['holdings-locked','pnl-locked','trades-locked'].forEach(id=>{
           const el=document.getElementById(id);
           el.style.display='flex';
-          el.innerHTML=`<span style="color:var(--red);font-size:11px">API error: ${e.message.slice(0,40)}</span>`;
+          el.innerHTML=`<span style="color:var(--red);font-size:11px;text-align:center">${hint}</span><button class="unlock-btn" onclick="openModal()" style="margin-top:6px">RE-ENTER KEYS</button>`;
         });
         ['holdings-data','pnl-data','trades-data'].forEach(id=>{document.getElementById(id).style.display='none';});
       }
