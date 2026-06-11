@@ -587,68 +587,55 @@ async function refresh() {
       </div>`;
     }).join('');
 
-    // Private data
-    if(hasKeys()) {
-      try {
-        const [bal, trades] = await Promise.all([fetchBalance(), fetchTrades()]);
+    // Bot status data (written by the bot each tick, no API keys needed)
+    try {
+      const sr = await fetch('./data/status.json?t='+Date.now());
+      if (sr.ok) {
+        const s = await sr.json();
+        const xrpEur = (s.xrp_held||0) * ticker.price;
+        const total  = (s.eur_balance||0) + xrpEur;
 
         // Holdings
-        const xrpEur = bal.xrp * ticker.price;
-        const total  = xrpEur + bal.eur;
         document.getElementById('holdings-locked').style.display='none';
         document.getElementById('holdings-data').style.display='block';
-        set('h-xrp',     bal.xrp.toFixed(2)+' XRP');
+        set('h-xrp',     (s.xrp_held||0).toFixed(4)+' XRP');
         set('h-xrp-eur', '≈ €'+xrpEur.toFixed(2));
-        set('h-eur',     '€'+bal.eur.toFixed(2));
+        set('h-eur',     '€'+(s.eur_balance||0).toFixed(2));
         set('h-total',   '€'+total.toFixed(2), 'big-sm pos');
 
-        // 24h P&L from trade history
-        const sells=trades.filter(t=>t.type==='sell');
-        const buys =trades.filter(t=>t.type==='buy');
-        const sellProceeds=sells.reduce((a,t)=>a+parseFloat(t.cost),0);
-        const buyCosts    =buys .reduce((a,t)=>a+parseFloat(t.cost),0);
-        const pnl=sellProceeds-buyCosts;
-        const pnlPct=buyCosts>0?pnl/buyCosts*100:0;
+        // 24h P&L
+        const pnl=s.daily_pnl||0, pnlPct=s.daily_pnl_pct||0;
         document.getElementById('pnl-locked').style.display='none';
         document.getElementById('pnl-data').style.display='block';
-        set('pnl-eur', `${sign(pnl)}€${Math.abs(pnl).toFixed(2)}`, 'big '+cc(pnl));
-        set('pnl-pct', `${sign(pnlPct)}${pnlPct.toFixed(2)}% today`, 'sub '+cc(pnlPct));
-        set('pnl-trades',`${trades.length} trade${trades.length!==1?'s':''} in 24h`);
+        set('pnl-eur',    `${sign(pnl)}€${Math.abs(pnl).toFixed(2)}`, 'big '+cc(pnl));
+        set('pnl-pct',    `${sign(pnlPct)}${pnlPct.toFixed(2)}% today`, 'sub '+cc(pnlPct));
+        set('pnl-trades', `${s.daily_trades||0} trade${s.daily_trades!==1?'s':''} today · updated ${s.updated||'—'}`);
 
         // Trade history
-        set('trade-count', `${trades.length} in 24h`);
+        const trades = s.trades || [];
+        set('trade-count', `${trades.length} recorded`);
         document.getElementById('trades-locked').style.display='none';
         document.getElementById('trades-data').style.display='block';
         document.getElementById('trade-rows').innerHTML = trades.length===0
-          ? '<div style="color:var(--dim);font-size:11px;padding:8px 0;font-weight:300">No trades in the last 24 hours</div>'
-          : trades.map(t=>{
-              const side=t.type;
-              const amt =parseFloat(t.vol).toFixed(2);
-              const pr  =parseFloat(t.price).toFixed(4);
-              const cost=parseFloat(t.cost).toFixed(2);
-              const fee =parseFloat(t.fee).toFixed(4);
-              return`<div class="trade-row">
-                <span style="color:var(--dim);font-size:10px">${fmtDate(t.time)}</span>
-                <span class="trade-${side}">${side.toUpperCase()}</span>
-                <span>${amt} XRP</span>
-                <span>€${pr}</span>
-                <span>€${cost}</span>
-                <span style="color:var(--dim)">€${fee}</span>
-              </div>`;
-            }).join('');
-      } catch(e) {
-        console.warn('Private API error:', e.message);
-        const hint = e.message.includes('base64') ? 'Wrong field pasted — use the Private Key, not API Key'
-                   : e.message.includes('Invalid key') ? 'Permission denied — enable Query Funds on your Kraken key'
-                   : e.message.includes('EAPI') ? 'Invalid API key — check and re-enter in ⚙ API KEYS'
-                   : e.message;
+          ? '<div style="color:var(--dim);font-size:11px;padding:8px 0;font-weight:300">No trades recorded yet — runs when bot executes a trade</div>'
+          : trades.map(t=>`<div class="trade-row">
+              <span style="color:var(--dim);font-size:10px">${t.time}</span>
+              <span class="trade-${t.side.toLowerCase()}">${t.side}</span>
+              <span>${t.xrp} XRP</span>
+              <span>€${t.price}</span>
+              <span>€${t.cost}</span>
+              <span style="color:var(--dim)">—</span>
+            </div>`).join('');
+      } else {
+        // File doesn't exist yet — bot hasn't run
         ['holdings-locked','pnl-locked','trades-locked'].forEach(id=>{
           const el=document.getElementById(id);
           el.style.display='flex';
-          el.innerHTML=`<span style="color:var(--red);font-size:11px;text-align:center">${hint}</span><button class="unlock-btn" onclick="openModal()" style="margin-top:6px">RE-ENTER KEYS</button>`;
+          el.innerHTML='<span style="color:var(--dim);font-size:11px">Waiting for bot to run…</span>';
         });
-        ['holdings-data','pnl-data','trades-data'].forEach(id=>{document.getElementById(id).style.display='none';});
       }
+    } catch(e) {
+      console.warn('Status file error:', e.message);
     }
 
     set('last-update','LAST UPDATE: '+new Date().toTimeString().slice(0,8));
@@ -659,7 +646,6 @@ async function refresh() {
   }
 }
 
-if(!hasKeys()) showLockedPanels();
 refresh();
 setInterval(refresh, 30000);
 </script>

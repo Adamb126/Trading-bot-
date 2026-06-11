@@ -5,8 +5,11 @@ Strategy:  Multi-indicator confluence (RSI + MACD + Bollinger Bands + EMA + Volu
 Risk:      10% daily profit target | 7.5% daily stop-loss
 """
 
+import json
 import logging
 import time
+from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 import config
@@ -14,6 +17,8 @@ from exchange import ExchangeClient
 from indicators import compute_indicators, ohlcv_to_df
 from risk_manager import RiskManager
 from strategy import Signal, generate_signal
+
+DATA_FILE = Path("data/status.json")
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -80,6 +85,7 @@ class TradingBot:
         self.position_xrp = total_xrp
         self.position_cost_eur += cost_eur
         self.risk.record_trade_open(cost_eur)
+        self.record_trade("BUY", filled_xrp, filled_price, cost_eur)
         logger.info(
             f"Position opened: {filled_xrp:.4f} XRP @ {filled_price:.4f} EUR "
             f"| Total held: {self.position_xrp:.4f} XRP"
@@ -96,6 +102,7 @@ class TradingBot:
 
         proceeds_eur = order.get("cost") or (self.position_xrp * current_price)
         self.risk.record_trade_close(self.position_cost_eur, proceeds_eur)
+        self.record_trade("SELL", self.position_xrp, current_price, proceeds_eur)
 
         logger.info(
             f"Position closed ({reason}): {self.position_xrp:.4f} XRP @ {current_price:.4f} EUR "
@@ -106,6 +113,57 @@ class TradingBot:
         self.position_xrp = 0.0
         self.avg_entry_price = 0.0
         self.position_cost_eur = 0.0
+
+    # ── Status file ───────────────────────────────────────────────────────────
+
+    def _write_status(self, current_price: float, signal, eur_balance: float):
+        try:
+            DATA_FILE.parent.mkdir(exist_ok=True)
+            unreal_pct = 0.0
+            if self.position_xrp > 0 and self.avg_entry_price > 0:
+                unreal_pct = (current_price - self.avg_entry_price) / self.avg_entry_price * 100
+            data = {
+                "updated":        datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "price":          current_price,
+                "dry_run":        config.DRY_RUN,
+                "eur_balance":    round(eur_balance, 2),
+                "xrp_held":       round(self.position_xrp, 4),
+                "avg_entry":      round(self.avg_entry_price, 4),
+                "position_value": round(self.position_xrp * current_price, 2),
+                "unreal_pct":     round(unreal_pct, 2),
+                "total_value":    round(eur_balance + self.position_xrp * current_price, 2),
+                "daily_pnl":      round(self.risk.stats.realized_pnl_eur, 2),
+                "daily_pnl_pct":  round(self.risk.stats.realized_pnl_eur / self.risk.stats.starting_eur * 100
+                                        if self.risk.stats.starting_eur else 0, 2),
+                "daily_trades":   self.risk.stats.trade_count,
+                "daily_starting": round(self.risk.stats.starting_eur, 2),
+                "locked":         self.risk.stats.locked,
+                "signal":         signal.signal.value,
+                "signal_conf":    round(signal.confidence, 2),
+                "signal_reason":  signal.reason,
+            }
+            # Append trade to history list
+            existing = json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
+            data["trades"] = existing.get("trades", [])
+            DATA_FILE.write_text(json.dumps(data, indent=2))
+        except Exception as e:
+            logger.warning(f"Failed to write status file: {e}")
+
+    def record_trade(self, side: str, xrp: float, price: float, cost: float):
+        try:
+            existing = json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
+            trades = existing.get("trades", [])
+            trades.insert(0, {
+                "time":  datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                "side":  side,
+                "xrp":   round(xrp, 4),
+                "price": round(price, 4),
+                "cost":  round(cost, 2),
+            })
+            existing["trades"] = trades[:50]  # keep last 50
+            DATA_FILE.write_text(json.dumps(existing, indent=2))
+        except Exception as e:
+            logger.warning(f"Failed to record trade: {e}")
 
     # ── Main loop tick ────────────────────────────────────────────────────────
 
@@ -144,6 +202,7 @@ class TradingBot:
                 self._execute_sell(current_price, reason="signal")
 
             logger.debug(self.risk.summary())
+            self._write_status(current_price, signal, eur_balance)
 
         except Exception as e:
             logger.error(f"Error in tick: {e}", exc_info=True)
