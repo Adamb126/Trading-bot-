@@ -18,6 +18,9 @@ logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
+KRAKEN_TAKER_FEE = 0.0026  # 0.26% per market order
+
+
 def run_backtest(days: int = 30):
     print(f"\nBacktest: XRP/EUR | Last {days} days | Timeframe: {config.TIMEFRAME}")
     print("-" * 60)
@@ -57,14 +60,18 @@ def run_backtest(days: int = 30):
         signal = generate_signal(window)
 
         if signal.signal == Signal.BUY and position_xrp == 0 and available_eur >= 5:
-            xrp_bought = available_eur / current_price
+            fee = available_eur * KRAKEN_TAKER_FEE
+            cost_after_fee = available_eur - fee
+            xrp_bought = cost_after_fee / current_price
             position_xrp = xrp_bought
             avg_entry = current_price
             position_cost = available_eur
             available_eur = 0.0
 
         elif signal.signal == Signal.SELL and position_xrp > 0:
-            proceeds = position_xrp * current_price
+            gross = position_xrp * current_price
+            fee = gross * KRAKEN_TAKER_FEE
+            proceeds = gross - fee
             pnl = proceeds - position_cost
             daily_pnl[today] = daily_pnl.get(today, 0.0) + pnl
             trades.append({
@@ -83,7 +90,8 @@ def run_backtest(days: int = 30):
     # Close any open position at last price
     if position_xrp > 0:
         last_price = df_full.iloc[-1]["close"]
-        proceeds = position_xrp * last_price
+        gross = position_xrp * last_price
+        proceeds = gross - gross * KRAKEN_TAKER_FEE
         pnl = proceeds - position_cost
         trades.append({
             "time": df_full.index[-1],

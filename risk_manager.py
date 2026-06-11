@@ -89,8 +89,8 @@ class RiskManager:
         """Trigger an intra-day emergency sell if unrealized loss would breach stop-loss."""
         if xrp_held == 0 or avg_entry_price == 0 or self.stats.starting_eur == 0:
             return False
-        unrealized_loss_eur = (avg_entry_price - current_price) * xrp_held
-        total_loss = self.stats.realized_pnl_eur - unrealized_loss_eur
+        unrealized_pnl_eur = (current_price - avg_entry_price) * xrp_held
+        total_loss = self.stats.realized_pnl_eur + unrealized_pnl_eur
         total_loss_pct = total_loss / self.stats.starting_eur
         if total_loss_pct <= -config.DAILY_STOP_LOSS:
             logger.warning(

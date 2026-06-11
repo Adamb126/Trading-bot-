@@ -1,0 +1,36 @@
+name: XRP/EUR Trading Bot
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # every 5 minutes
+  workflow_dispatch:         # allow manual runs from GitHub UI
+
+jobs:
+  trade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run bot (single tick)
+        env:
+          KRAKEN_API_KEY: ${{ secrets.KRAKEN_API_KEY }}
+          KRAKEN_API_SECRET: ${{ secrets.KRAKEN_API_SECRET }}
+          TRADE_AMOUNT_EUR: ${{ vars.TRADE_AMOUNT_EUR || '100' }}
+          DAILY_PROFIT_TARGET: ${{ vars.DAILY_PROFIT_TARGET || '0.10' }}
+          DAILY_STOP_LOSS: ${{ vars.DAILY_STOP_LOSS || '0.075' }}
+          DRY_RUN: ${{ vars.DRY_RUN || 'true' }}
+        run: |
+          python - << 'PYEOF'
+          from bot import TradingBot
+          bot = TradingBot()
+          bot.tick()
+          PYEOF
