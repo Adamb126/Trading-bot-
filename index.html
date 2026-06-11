@@ -204,10 +204,10 @@
   <div class="modal">
     <div class="modal-title">API CREDENTIALS</div>
     <div class="modal-sub">Stored only in your browser. Never sent anywhere except Kraken.</div>
-    <label>KRAKEN API KEY</label>
-    <input type="text" id="inp-key" placeholder="paste your API key…" autocomplete="off" spellcheck="false">
-    <label>KRAKEN API SECRET</label>
-    <input type="password" id="inp-secret" placeholder="paste your API secret…" autocomplete="off" spellcheck="false">
+    <label>KRAKEN API KEY &nbsp;<span style="color:var(--dim);font-weight:300">(the shorter one, looks like: ABCDEF-GHIJK-LMNOPQ)</span></label>
+    <input type="text" id="inp-key" placeholder="XXXXXX-XXXXX-XXXXXX" autocomplete="off" spellcheck="false">
+    <label>KRAKEN PRIVATE KEY &nbsp;<span style="color:var(--dim);font-weight:300">(the long base64 string)</span></label>
+    <input type="password" id="inp-secret" placeholder="kQW9m3...long base64 string..." autocomplete="off" spellcheck="false">
     <div class="modal-actions">
       <button class="btn btn-primary" onclick="saveKeys()">SAVE &amp; CONNECT</button>
       <button class="btn btn-ghost" onclick="closeModal()">CANCEL</button>
@@ -354,9 +354,13 @@ const LS_SECRET = 'kraken_secret';
 function getKeys() {
   return { key: localStorage.getItem(LS_KEY) || '', secret: localStorage.getItem(LS_SECRET) || '' };
 }
+function isValidBase64(str) {
+  try { return str.length > 0 && btoa(atob(str)) === str; }
+  catch { return false; }
+}
 function hasKeys() {
   const { key, secret } = getKeys();
-  return key.length > 0 && secret.length > 0;
+  return key.length > 0 && isValidBase64(secret);
 }
 function openModal() {
   const { key, secret } = getKeys();
@@ -399,6 +403,7 @@ async function krakenPrivate(endpoint, params = {}) {
   const sha256   = await crypto.subtle.digest('SHA-256', msgBuf);
 
   // HMAC-SHA512 of (endpoint_bytes + sha256) using base64-decoded secret
+  if (!isValidBase64(secret)) throw new Error('Invalid API secret — must be the base64 string from Kraken');
   const secretBytes = Uint8Array.from(atob(secret), c => c.charCodeAt(0));
   const hmacKey = await crypto.subtle.importKey('raw', secretBytes, { name:'HMAC', hash:'SHA-512' }, false, ['sign']);
   const epBytes = new TextEncoder().encode(endpoint);
