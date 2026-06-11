@@ -381,6 +381,7 @@ def api_status():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("DASHBOARD_PORT", 5000))
+    # PORT is set automatically by Render/Railway/Heroku
+    port = int(os.getenv("PORT", os.getenv("DASHBOARD_PORT", 5000)))
     print(f"Dashboard running at http://localhost:{port}")
     app.run(host="0.0.0.0", port=port, debug=False)

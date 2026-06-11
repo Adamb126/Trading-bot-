@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: xrp-trading-dashboard
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python dashboard.py
+    envVars:
+      - key: DRY_RUN
+        value: "true"
+      - key: KRAKEN_API_KEY
+        sync: false        # you enter this manually in Render dashboard
+      - key: KRAKEN_API_SECRET
+        sync: false
