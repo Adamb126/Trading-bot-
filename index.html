@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XRP/EUR TRADING BOT</title>
+<style>
+  :root {
+    --green:  #00ff41;
+    --green2: #00cc33;
+    --amber:  #ffb000;
+    --red:    #ff3333;
+    --dim:    #006616;
+    --bg:     #000000;
+    --bg2:    #040d04;
+    --border: #00551a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--green);
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 12px;
+    min-height: 100vh;
+  }
+  .frame {
+    border: 1px solid var(--border);
+    background: var(--bg2);
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .titlebar {
+    border-bottom: 1px solid var(--border);
+    padding: 6px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #010e01;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .title { font-size: 15px; font-weight: bold; letter-spacing: 3px; }
+  .badge {
+    font-size: 11px; padding: 2px 8px;
+    border: 1px solid currentColor;
+    letter-spacing: 1px;
+  }
+  .badge.live { color: var(--green); border-color: var(--green); animation: blink 1.5s infinite; }
+  .badge.err  { color: var(--red);   border-color: var(--red); }
+  @keyframes blink { 50% { opacity: 0.3; } }
+
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; border-bottom: 1px solid var(--border); }
+  @media(max-width:680px){ .grid3 { grid-template-columns: 1fr; } }
+  .cell { padding: 12px 14px; border-right: 1px solid var(--border); }
+  .cell:last-child { border-right: none; }
+  .cell-label { font-size: 10px; letter-spacing: 2px; color: var(--dim); margin-bottom: 8px; }
+  .big { font-size: 26px; font-weight: bold; letter-spacing: 1px; }
+  .sub { font-size: 12px; color: var(--green2); margin-top: 3px; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .neu { color: var(--amber); }
+
+  .section { border-bottom: 1px solid var(--border); padding: 10px 14px; }
+  .section-label { font-size: 10px; letter-spacing: 2px; color: var(--dim); margin-bottom: 8px; }
+  .kv-row { display: flex; gap: 28px; flex-wrap: wrap; }
+  .kv { display: flex; flex-direction: column; min-width: 80px; }
+  .kv-key { font-size: 10px; color: var(--dim); letter-spacing: 1px; }
+  .kv-val { font-size: 14px; font-weight: bold; margin-top: 2px; }
+
+  .signal-bar {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+  }
+  .sig-label { font-size: 10px; letter-spacing: 2px; color: var(--dim); }
+  .sig-val   { font-size: 18px; font-weight: bold; letter-spacing: 3px; min-width: 60px; }
+  .sig-BUY   { color: var(--green); }
+  .sig-SELL  { color: var(--red); }
+  .sig-HOLD  { color: var(--amber); }
+  .conf-wrap { flex:1; min-width:80px; height:8px; background:#011201; border:1px solid var(--border); }
+  .conf-fill { height:100%; background:var(--green); transition:width .5s; }
+  .reason    { font-size: 11px; color: var(--green2); }
+
+  .candle-section { border-bottom: 1px solid var(--border); padding: 10px 14px; }
+  .candle-header { font-size:10px; letter-spacing:2px; color:var(--dim); margin-bottom:6px; display:flex; justify-content:space-between; }
+  .candle-row { display:flex; gap:8px; padding:2px 0; border-bottom:1px solid #010e01; font-size:12px; align-items:center; }
+  .c-time { color:var(--dim); flex-shrink:0; width:56px; }
+  .c-ohlc { color:var(--green2); flex:1; }
+  .c-vol  { color:var(--dim); width:70px; text-align:right; font-size:11px; }
+  .c-bar  { width:60px; height:6px; background:#011201; border:1px solid var(--border); }
+  .c-bar-fill { height:100%; }
+
+  .footer {
+    padding:6px 14px; font-size:10px; color:var(--dim);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px; letter-spacing:1px;
+  }
+  .scanline {
+    pointer-events:none; position:fixed; top:0; left:0; width:100%; height:100%;
+    background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.05) 2px,rgba(0,0,0,.05) 4px);
+    z-index:999;
+  }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="frame">
+  <div class="titlebar">
+    <span class="title">&#9632; XRP/EUR TRADING BOT</span>
+    <span id="now" style="font-size:12px;color:var(--green2)">--:--:-- UTC</span>
+    <span id="status-badge" class="badge live">● LIVE</span>
+  </div>
+
+  <!-- Row 1: price / 24h stats / spread -->
+  <div class="grid3">
+    <div class="cell">
+      <div class="cell-label">MARKET &mdash; XRP / EUR</div>
+      <div class="big" id="price">-.----</div>
+      <div class="sub" id="change">24h: loading…</div>
+      <div class="sub" id="vol24" style="margin-top:4px">Vol: —</div>
+    </div>
+    <div class="cell">
+      <div class="cell-label">24H RANGE</div>
+      <div class="big" id="high24" style="font-size:18px">H: -.----</div>
+      <div class="sub" id="low24">L: -.----</div>
+      <div class="sub" id="bidask" style="margin-top:4px">Bid: —  Ask: —</div>
+    </div>
+    <div class="cell">
+      <div class="cell-label">INDICATORS (15m)</div>
+      <div class="kv-row" style="margin-top:4px">
+        <div class="kv"><span class="kv-key">RSI(14)</span><span class="kv-val" id="rsi">—</span></div>
+        <div class="kv"><span class="kv-key">BB%</span><span class="kv-val" id="bbpct">—</span></div>
+        <div class="kv"><span class="kv-key">EMA TREND</span><span class="kv-val" id="ema">—</span></div>
+        <div class="kv"><span class="kv-key">VOL RATIO</span><span class="kv-val" id="volratio">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MACD section -->
+  <div class="section">
+    <div class="section-label">MACD (12 / 26 / 9)</div>
+    <div class="kv-row">
+      <div class="kv"><span class="kv-key">MACD LINE</span><span class="kv-val" id="macd">—</span></div>
+      <div class="kv"><span class="kv-key">SIGNAL LINE</span><span class="kv-val" id="macd-sig">—</span></div>
+      <div class="kv"><span class="kv-key">HISTOGRAM</span><span class="kv-val" id="macd-hist">—</span></div>
+      <div class="kv"><span class="kv-key">CROSSOVER</span><span class="kv-val" id="macd-cross">—</span></div>
+    </div>
+  </div>
+
+  <!-- Signal bar -->
+  <div class="signal-bar">
+    <span class="sig-label">SIGNAL</span>
+    <span class="sig-val sig-HOLD" id="sig-val">HOLD</span>
+    <span style="font-size:11px;color:var(--dim)">CONF</span>
+    <div class="conf-wrap"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
+    <span id="conf-pct" style="font-size:12px;color:var(--dim)">0%</span>
+    <span class="reason" id="sig-reason">Waiting for data…</span>
+  </div>
+
+  <!-- Recent candles -->
+  <div class="candle-section">
+    <div class="candle-header">
+      <span>RECENT CANDLES &mdash; 15m</span>
+      <span id="candle-count">—</span>
+    </div>
+    <div id="candle-rows"></div>
+  </div>
+
+  <div class="footer">
+    <span>DATA: KRAKEN PUBLIC API &nbsp;|&nbsp; TIMEFRAME: 15m &nbsp;|&nbsp; REFRESH: 30s</span>
+    <span id="last-update">LAST UPDATE: —</span>
+  </div>
+</div>
+
+<script>
+// ── Indicator math (mirrors Python indicators.py) ─────────────────────────
+
+function ema(arr, span) {
+  const k = 2 / (span + 1);
+  const out = new Array(arr.length).fill(NaN);
+  let started = false;
+  for (let i = 0; i < arr.length; i++) {
+    if (!started) { out[i] = arr[i]; started = true; }
+    else out[i] = arr[i] * k + out[i-1] * (1 - k);
+  }
+  return out;
+}
+
+function rsi(closes, period=14) {
+  const deltas = closes.slice(1).map((v,i) => v - closes[i]);
+  const gains  = deltas.map(d => d > 0 ? d : 0);
+  const losses = deltas.map(d => d < 0 ? -d : 0);
+  const avgGain = ema(gains, period);
+  const avgLoss = ema(losses, period);
+  const last = closes.length - 2;
+  const rs = avgLoss[last] === 0 ? 100 : avgGain[last] / avgLoss[last];
+  return 100 - (100 / (1 + rs));
+}
+
+function macd(closes, fast=12, slow=26, signal=9) {
+  const eFast = ema(closes, fast);
+  const eSlow = ema(closes, slow);
+  const line  = eFast.map((v,i) => v - eSlow[i]);
+  const sig   = ema(line, signal);
+  const hist  = line.map((v,i) => v - sig[i]);
+  return { line, sig, hist };
+}
+
+function bollinger(closes, period=20, mult=2) {
+  const n = closes.length;
+  const sma = closes.slice(n-period).reduce((a,b)=>a+b,0)/period;
+  const variance = closes.slice(n-period).reduce((a,b)=>a+(b-sma)**2,0)/period;
+  const std = Math.sqrt(variance);
+  const upper = sma + mult*std, lower = sma - mult*std;
+  const last = closes[n-1];
+  const pct = upper === lower ? 0.5 : (last - lower) / (upper - lower);
+  return { upper, lower, mid: sma, pct };
+}
+
+function volRatio(volumes, period=20) {
+  const n = volumes.length;
+  const sma = volumes.slice(n-period-1, n-1).reduce((a,b)=>a+b,0)/period;
+  return sma === 0 ? 1 : volumes[n-1] / sma;
+}
+
+function generateSignal(closes, volumes) {
+  if (closes.length < 50) return { signal:'HOLD', confidence:0, reason:'Insufficient data' };
+
+  const rsiVal  = rsi(closes);
+  const { line, sig, hist } = macd(closes);
+  const bb      = bollinger(closes);
+  const eFast   = ema(closes, 9);
+  const eSlow   = ema(closes, 21);
+  const vr      = volRatio(volumes);
+  const n       = closes.length - 1;
+  const emaTrend = eFast[n] > eSlow[n];
+
+  const prevMacd = line[n-1], prevSig = sig[n-1];
+  const currMacd = line[n],   currSig = sig[n];
+  const crossedUp   = prevMacd <= prevSig && currMacd > currSig;
+  const crossedDown = prevMacd >= prevSig && currMacd < currSig;
+
+  let buyScore=0, sellScore=0, buyReasons=[], sellReasons=[];
+
+  if (rsiVal < 35)   { buyScore++;  buyReasons.push(`RSI oversold (${rsiVal.toFixed(1)})`); }
+  if (rsiVal > 65)   { sellScore++; sellReasons.push(`RSI overbought (${rsiVal.toFixed(1)})`); }
+  if (currMacd > currSig && hist[n] > 0) { buyScore++;  buyReasons.push('MACD bullish'); }
+  if (currMacd < currSig && hist[n] < 0) { sellScore++; sellReasons.push('MACD bearish'); }
+  if (bb.pct < 0.2)  { buyScore++;  buyReasons.push(`Near BB lower (${bb.pct.toFixed(2)})`); }
+  if (bb.pct > 0.8)  { sellScore++; sellReasons.push(`Near BB upper (${bb.pct.toFixed(2)})`); }
+  if (emaTrend)      { buyScore++;  buyReasons.push('EMA uptrend'); }
+  else               { sellScore++; sellReasons.push('EMA downtrend'); }
+  if (vr > 1.3)      { buyScore++;  sellScore++; buyReasons.push(`Vol x${vr.toFixed(2)}`); sellReasons.push(`Vol x${vr.toFixed(2)}`); }
+
+  if (buyScore >= 3 && (crossedUp || buyScore >= 4))
+    return { signal:'BUY',  confidence: buyScore/5,  reason: buyReasons.join(' | '),
+             rsi: rsiVal, bb, macd: currMacd, macdSig: currSig, macdHist: hist[n], emaTrend, vr, crossedUp, crossedDown };
+  if (sellScore >= 3 && (crossedDown || sellScore >= 4))
+    return { signal:'SELL', confidence: sellScore/5, reason: sellReasons.join(' | '),
+             rsi: rsiVal, bb, macd: currMacd, macdSig: currSig, macdHist: hist[n], emaTrend, vr, crossedUp, crossedDown };
+
+  return { signal:'HOLD', confidence:0, reason: buyScore > sellScore ? buyReasons.join(' | ') : sellReasons.join(' | ') || 'No clear signal',
+           rsi: rsiVal, bb, macd: currMacd, macdSig: currSig, macdHist: hist[n], emaTrend, vr, crossedUp, crossedDown };
+}
+
+// ── Kraken API ────────────────────────────────────────────────────────────
+
+async function fetchTicker() {
+  const r = await fetch('https://api.kraken.com/0/public/Ticker?pair=XRPEUR');
+  const j = await r.json();
+  if (j.error?.length) throw new Error(j.error[0]);
+  const t = j.result.XXRPZEUR || j.result.XRPEUR || Object.values(j.result)[0];
+  return {
+    price:  parseFloat(t.c[0]),
+    bid:    parseFloat(t.b[0]),
+    ask:    parseFloat(t.a[0]),
+    high:   parseFloat(t.h[1]),
+    low:    parseFloat(t.l[1]),
+    vol24:  parseFloat(t.v[1]),
+    open:   parseFloat(t.o),
+  };
+}
+
+async function fetchOHLCV(limit=200) {
+  const r = await fetch('https://api.kraken.com/0/public/OHLC?pair=XRPEUR&interval=15');
+  const j = await r.json();
+  if (j.error?.length) throw new Error(j.error[0]);
+  const data = j.result.XXRPZEUR || j.result.XRPEUR || Object.values(j.result).find(Array.isArray);
+  return data.slice(-limit);
+}
+
+// ── Formatting helpers ────────────────────────────────────────────────────
+
+function fmt4(n)  { return typeof n==='number' ? n.toFixed(4) : '—'; }
+function fmt2(n)  { return typeof n==='number' ? n.toFixed(2)  : '—'; }
+function sign(n)  { return n >= 0 ? '+' : ''; }
+function colorClass(n) { return n > 0 ? 'pos' : n < 0 ? 'neg' : 'neu'; }
+
+function fmtTime(unixSec) {
+  const d = new Date(unixSec * 1000);
+  return d.getUTCHours().toString().padStart(2,'0') + ':' +
+         d.getUTCMinutes().toString().padStart(2,'0');
+}
+
+// ── DOM update ────────────────────────────────────────────────────────────
+
+function set(id, text, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  if (cls !== undefined) el.className = cls;
+}
+
+async function refresh() {
+  try {
+    const [ticker, ohlcv] = await Promise.all([fetchTicker(), fetchOHLCV()]);
+
+    const closes  = ohlcv.map(c => parseFloat(c[4]));
+    const volumes = ohlcv.map(c => parseFloat(c[6]));
+    const result  = generateSignal(closes, volumes);
+
+    // Clock
+    document.getElementById('now').textContent = new Date().toUTCString().slice(17,25) + ' UTC';
+    document.getElementById('status-badge').textContent = '● LIVE';
+    document.getElementById('status-badge').className = 'badge live';
+
+    // Price
+    const chgPct = ((ticker.price - ticker.open) / ticker.open * 100);
+    const priceEl = document.getElementById('price');
+    priceEl.textContent = fmt4(ticker.price);
+    priceEl.className = 'big ' + colorClass(chgPct);
+    set('change', `24h: ${sign(chgPct)}${fmt2(chgPct)}%`, 'sub ' + colorClass(chgPct));
+    set('vol24',  `Vol: ${(ticker.vol24/1e6).toFixed(2)}M XRP`);
+    set('high24', `H: ${fmt4(ticker.high)}`);
+    set('low24',  `L: ${fmt4(ticker.low)}`);
+    set('bidask', `Bid: ${fmt4(ticker.bid)}   Ask: ${fmt4(ticker.ask)}`);
+
+    // Indicators
+    if (result.rsi !== undefined) {
+      const rsiV = result.rsi;
+      set('rsi', fmt2(rsiV), 'kv-val ' + (rsiV < 35 ? 'pos' : rsiV > 65 ? 'neg' : 'neu'));
+      set('bbpct', fmt2(result.bb.pct), 'kv-val ' + (result.bb.pct < 0.2 ? 'pos' : result.bb.pct > 0.8 ? 'neg' : 'neu'));
+      set('ema', result.emaTrend ? 'BULL' : 'BEAR', 'kv-val ' + (result.emaTrend ? 'pos' : 'neg'));
+      set('volratio', `${result.vr.toFixed(2)}x`, 'kv-val ' + (result.vr > 1.3 ? 'pos' : 'neu'));
+
+      set('macd', fmt4(result.macd), 'kv-val ' + colorClass(result.macd));
+      set('macd-sig', fmt4(result.macdSig));
+      set('macd-hist', `${sign(result.macdHist)}${fmt4(result.macdHist)}`, 'kv-val ' + colorClass(result.macdHist));
+      set('macd-cross',
+        result.crossedUp   ? '▲ BULLISH' :
+        result.crossedDown ? '▼ BEARISH' : '— NONE',
+        'kv-val ' + (result.crossedUp ? 'pos' : result.crossedDown ? 'neg' : 'neu'));
+    }
+
+    // Signal
+    const confPct = Math.round((result.confidence || 0) * 100);
+    const sigEl = document.getElementById('sig-val');
+    sigEl.textContent = result.signal;
+    sigEl.className = `sig-val sig-${result.signal}`;
+    document.getElementById('conf-fill').style.width = confPct + '%';
+    set('conf-pct', confPct + '%');
+    set('sig-reason', result.reason || '—');
+
+    // Candles
+    const recent = ohlcv.slice(-15).reverse();
+    const maxVol = Math.max(...recent.map(c => parseFloat(c[6])));
+    document.getElementById('candle-count').textContent = `${ohlcv.length} candles loaded`;
+    document.getElementById('candle-rows').innerHTML = recent.map(c => {
+      const [ts, o, h, l, cl, , v] = c.map((x,i) => i===0 ? x : parseFloat(x));
+      const bullish = cl >= o;
+      const volPct  = maxVol > 0 ? v / maxVol * 100 : 0;
+      return `<div class="candle-row">
+        <span class="c-time">${fmtTime(ts)}</span>
+        <span class="c-ohlc ${bullish?'pos':'neg'}">
+          ${bullish?'▲':'▼'} O:${o.toFixed(4)} H:${h.toFixed(4)} L:${l.toFixed(4)} C:${cl.toFixed(4)}
+        </span>
+        <div class="c-bar"><div class="c-bar-fill ${bullish?'pos':'neg'}" style="width:${volPct.toFixed(0)}%;background:${bullish?'var(--green)':'var(--red)'}"></div></div>
+        <span class="c-vol">${(v/1000).toFixed(0)}K</span>
+      </div>`;
+    }).join('');
+
+    document.getElementById('last-update').textContent =
+      'LAST UPDATE: ' + new Date().toTimeString().slice(0,8);
+
+  } catch(e) {
+    console.error(e);
+    document.getElementById('status-badge').textContent = 'ERROR';
+    document.getElementById('status-badge').className = 'badge err';
+    document.getElementById('sig-reason').textContent = 'API error: ' + e.message;
+  }
+}
+
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>
