@@ -1,0 +1,32 @@
+name: Dashboard
+
+on:
+  workflow_dispatch:
+    inputs:
+      port:
+        description: 'Port to expose (default 5000)'
+        required: false
+        default: '5000'
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Start dashboard
+        env:
+          KRAKEN_API_KEY: ${{ secrets.KRAKEN_API_KEY }}
+          KRAKEN_API_SECRET: ${{ secrets.KRAKEN_API_SECRET }}
+          DRY_RUN: ${{ vars.DRY_RUN || 'true' }}
+          DASHBOARD_PORT: ${{ inputs.port }}
+        run: python dashboard.py
