@@ -48,3 +48,11 @@ jobs:
           git add data/status.json
           git diff --cached --quiet || git commit -m "chore: update dashboard data [skip ci]"
           git push origin main
+
+      - name: Schedule next run
+        if: github.event_name != 'push'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 300
+          gh workflow run trade.yml --repo ${{ github.repository }} --ref main
