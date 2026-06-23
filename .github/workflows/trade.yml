@@ -50,9 +50,12 @@ jobs:
           git push origin main
 
       - name: Schedule next run
-        if: github.event_name != 'push'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: github.event_name != 'push' || github.event.head_commit.author.name == 'trading-bot'
         run: |
-          sleep 300
-          gh workflow run trade.yml --repo ${{ github.repository }} --ref main
+          sleep 270
+          git config user.name  "trading-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git fetch origin main
+          git reset --hard origin/main
+          git commit --allow-empty -m "chore: bot heartbeat"
+          git push origin main
