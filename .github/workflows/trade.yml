@@ -29,7 +29,7 @@ jobs:
           TRADE_AMOUNT_EUR: ${{ vars.TRADE_AMOUNT_EUR || '100' }}
           DAILY_PROFIT_TARGET: ${{ vars.DAILY_PROFIT_TARGET || '0.10' }}
           DAILY_STOP_LOSS: ${{ vars.DAILY_STOP_LOSS || '0.075' }}
-          DRY_RUN: ${{ vars.DRY_RUN || 'true' }}
+          DRY_RUN: "false"
         run: |
           python - << 'PYEOF'
           from bot import TradingBot
