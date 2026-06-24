@@ -1,12 +1,12 @@
 {
-  "updated": "2026-06-24 16:40:30 UTC",
-  "price": 0.93346,
+  "updated": "2026-06-24 16:40:55 UTC",
+  "price": 0.93368,
   "dry_run": false,
   "eur_balance": 0.01,
   "xrp_held": 10.3911,
   "avg_entry": 0.9357,
   "position_value": 9.7,
-  "unreal_pct": -0.24,
+  "unreal_pct": -0.22,
   "total_value": 9.71,
   "daily_pnl": 0.0,
   "daily_pnl_pct": 0.0,
@@ -15,7 +15,7 @@
   "locked": false,
   "signal": "BUY",
   "signal_conf": 0.6,
-  "signal_reason": "RSI oversold (28.5) | Price near BB lower band (0.16) | High volume confirmation (1.85x)",
+  "signal_reason": "RSI oversold (28.7) | Price near BB lower band (0.16) | High volume confirmation (1.85x)",
   "trades": [
     {
       "time": "2026-06-24 16:37 UTC",
