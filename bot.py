@@ -167,10 +167,24 @@ class TradingBot:
 
     # ── Main loop tick ────────────────────────────────────────────────────────
 
+    def _load_position(self):
+        """Restore position state from status.json and sync XRP balance from exchange."""
+        self._sync_position()  # get actual XRP held from Kraken
+        if self.position_xrp > 0 and DATA_FILE.exists():
+            try:
+                saved = json.loads(DATA_FILE.read_text())
+                self.avg_entry_price = float(saved.get("avg_entry", 0.0))
+                self.position_cost_eur = float(saved.get("position_value", 0.0))
+            except Exception:
+                pass
+
     def tick(self):
         try:
             current_price = self._get_current_price()
             eur_balance = self.client.get_free_balance(config.QUOTE_CURRENCY)
+
+            # Restore position from exchange + saved state on every tick
+            self._load_position()
 
             # Initialise daily starting balance on first tick of the day
             self.risk.set_starting_balance(eur_balance + self.position_xrp * current_price)
