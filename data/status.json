@@ -1,6 +1,6 @@
 {
-  "updated": "2026-06-24 19:29:38 UTC",
-  "price": 0.92833,
+  "updated": "2026-06-24 19:30:01 UTC",
+  "price": 0.9283,
   "dry_run": false,
   "eur_balance": 0.0,
   "xrp_held": 10.3508,
@@ -13,9 +13,9 @@
   "daily_trades": 0,
   "daily_starting": 9.61,
   "locked": false,
-  "signal": "BUY",
-  "signal_conf": 0.6,
-  "signal_reason": "RSI oversold (37.0) | MACD bullish crossover | High volume confirmation (1.75x)",
+  "signal": "HOLD",
+  "signal_conf": 0.0,
+  "signal_reason": "No clear signal",
   "trades": [
     {
       "time": "2026-06-24 18:13 UTC",
