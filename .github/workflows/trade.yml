@@ -51,13 +51,7 @@ jobs:
 
       - name: Schedule next run
         env:
-          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           sleep 270
-          git config user.name  "trading-bot"
-          git config user.email "bot@users.noreply.github.com"
-          git fetch origin main
-          git reset --hard origin/main
-          git commit --allow-empty -m "chore: bot heartbeat"
-          git remote set-url origin https://x-access-token:${PAT_TOKEN}@github.com/${{ github.repository }}.git
-          git push origin main
+          gh workflow run trade.yml --repo ${{ github.repository }} --ref main
