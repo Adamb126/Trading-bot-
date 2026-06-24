@@ -143,7 +143,10 @@ class TradingBot:
                 "signal_reason":  signal.reason,
             }
             # Append trade to history list
-            existing = json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
+            try:
+                existing = json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
+            except Exception:
+                existing = {}
             data["trades"] = existing.get("trades", [])
             DATA_FILE.write_text(json.dumps(data, indent=2))
         except Exception as e:
@@ -151,7 +154,10 @@ class TradingBot:
 
     def record_trade(self, side: str, xrp: float, price: float, cost: float):
         try:
-            existing = json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
+            try:
+                existing = json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
+            except Exception:
+                existing = {}
             trades = existing.get("trades", [])
             trades.insert(0, {
                 "time":  datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),

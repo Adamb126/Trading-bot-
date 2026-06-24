@@ -42,9 +42,9 @@ jobs:
           git config user.name  "trading-bot"
           git config user.email "bot@users.noreply.github.com"
           git fetch origin main
-          git stash
-          git rebase origin/main
-          git stash pop || true
+          cp data/status.json /tmp/status_new.json
+          git reset --hard origin/main
+          cp /tmp/status_new.json data/status.json
           git add data/status.json
           git diff --cached --quiet || git commit -m "chore: update dashboard data [skip ci]"
           git push origin main
