@@ -4,8 +4,6 @@ on:
   schedule:
     - cron: '*/5 * * * *'
   workflow_dispatch:
-  push:
-    branches: [main]
 
 jobs:
   trade:
@@ -46,7 +44,7 @@ jobs:
           git reset --hard origin/main
           cp /tmp/status_new.json data/status.json
           git add data/status.json
-          git diff --cached --quiet || git commit -m "chore: update dashboard data [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: update dashboard data"
           git push origin main
 
       - name: Schedule next run
