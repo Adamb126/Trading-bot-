@@ -1,6 +1,6 @@
 {
-  "updated": "2026-06-24 20:41:04 UTC",
-  "price": 0.94207,
+  "updated": "2026-06-24 20:41:40 UTC",
+  "price": 0.94253,
   "dry_run": false,
   "eur_balance": 9.68,
   "xrp_held": 0.0,
@@ -13,9 +13,9 @@
   "daily_trades": 0,
   "daily_starting": 9.68,
   "locked": false,
-  "signal": "HOLD",
-  "signal_conf": 0.0,
-  "signal_reason": "No clear signal",
+  "signal": "SELL",
+  "signal_conf": 0.6,
+  "signal_reason": "RSI overbought (55.3) | Price near BB upper band (0.99) | EMA fast < EMA slow (downtrend)",
   "trades": [
     {
       "time": "2026-06-24 18:13 UTC",
