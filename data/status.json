@@ -1,6 +1,6 @@
 {
-  "updated": "2026-06-24 15:56:33 UTC",
-  "price": 0.93166,
+  "updated": "2026-06-24 15:59:27 UTC",
+  "price": 0.93126,
   "dry_run": false,
   "eur_balance": 0.01,
   "xrp_held": 10.4485,
@@ -15,7 +15,7 @@
   "locked": false,
   "signal": "BUY",
   "signal_conf": 0.6,
-  "signal_reason": "RSI oversold (18.5) | Price near BB lower band (-0.02) | High volume confirmation (4.93x)",
+  "signal_reason": "RSI oversold (18.1) | Price near BB lower band (-0.04) | High volume confirmation (5.84x)",
   "trades": [
     {
       "time": "2026-06-24 13:27 UTC",
