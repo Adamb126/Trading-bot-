@@ -1,6 +1,6 @@
 {
-  "updated": "2026-06-24 16:35:48 UTC",
-  "price": 0.9375,
+  "updated": "2026-06-24 16:36:52 UTC",
+  "price": 0.9362,
   "dry_run": false,
   "eur_balance": 9.76,
   "xrp_held": 0.0,
@@ -15,7 +15,7 @@
   "locked": false,
   "signal": "SELL",
   "signal_conf": 0.6,
-  "signal_reason": "MACD bearish crossover | EMA fast < EMA slow (downtrend) | High volume confirmation (1.80x)",
+  "signal_reason": "MACD bearish crossover | EMA fast < EMA slow (downtrend) | High volume confirmation (1.84x)",
   "trades": [
     {
       "time": "2026-06-24 13:27 UTC",
