@@ -94,15 +94,15 @@ def generate_signal(df: pd.DataFrame) -> TradeSignal:
     buy_score, buy_reasons = _score_buy(row)
     sell_score, sell_reasons = _score_sell(row)
 
-    # Require at least 3/5 factors to enter
-    if buy_score >= 3:
+    # Require at least 3/5 factors AND MACD crossover confirmation to enter
+    if buy_score >= 3 and macd_just_crossed_up:
         confidence = buy_score / 5.0
         reason = " | ".join(buy_reasons)
         price = row["close"] * (1 + config.LIMIT_ORDER_SLIPPAGE)
         logger.info(f"BUY signal (conf={confidence:.2f}): {reason}")
         return TradeSignal(Signal.BUY, reason, confidence, price)
 
-    if sell_score >= 3:
+    if sell_score >= 3 and macd_just_crossed_down:
         confidence = sell_score / 5.0
         reason = " | ".join(sell_reasons)
         price = row["close"] * (1 - config.LIMIT_ORDER_SLIPPAGE)
