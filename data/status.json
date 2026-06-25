@@ -1,12 +1,12 @@
 {
-  "updated": "2026-06-25 06:54:45 UTC",
-  "price": 0.95725,
+  "updated": "2026-06-25 06:59:50 UTC",
+  "price": 0.95708,
   "dry_run": false,
   "eur_balance": 0.0,
   "xrp_held": 10.1238,
   "avg_entry": 0.9527,
   "position_value": 9.69,
-  "unreal_pct": 0.48,
+  "unreal_pct": 0.46,
   "total_value": 9.69,
   "daily_pnl": 0.0,
   "daily_pnl_pct": 0.0,
@@ -15,7 +15,7 @@
   "locked": false,
   "signal": "BUY",
   "signal_conf": 0.6,
-  "signal_reason": "MACD bullish crossover | EMA fast > EMA slow (uptrend) | High volume confirmation (1.32x)",
+  "signal_reason": "MACD bullish crossover | EMA fast > EMA slow (uptrend) | High volume confirmation (1.83x)",
   "trades": [
     {
       "time": "2026-06-25 05:22 UTC",
