@@ -1,6 +1,6 @@
 {
-  "updated": "2026-06-25 05:43:27 UTC",
-  "price": 0.95293,
+  "updated": "2026-06-25 05:48:31 UTC",
+  "price": 0.95289,
   "dry_run": false,
   "eur_balance": 0.0,
   "xrp_held": 10.1238,
@@ -15,7 +15,7 @@
   "locked": false,
   "signal": "BUY",
   "signal_conf": 0.6,
-  "signal_reason": "MACD bullish crossover | EMA fast > EMA slow (uptrend) | High volume confirmation (1.86x)",
+  "signal_reason": "MACD bullish crossover | EMA fast > EMA slow (uptrend) | High volume confirmation (3.76x)",
   "trades": [
     {
       "time": "2026-06-25 05:22 UTC",
