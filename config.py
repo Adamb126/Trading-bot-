@@ -26,8 +26,8 @@ LOOKBACK_CANDLES = 200      # How many candles to fetch for analysis
 
 # Technical indicator settings
 RSI_PERIOD = 14
-RSI_OVERSOLD = 45
-RSI_OVERBOUGHT = 55
+RSI_OVERSOLD = 38
+RSI_OVERBOUGHT = 62
 
 MACD_FAST = 12
 MACD_SLOW = 26
