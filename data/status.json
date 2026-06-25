@@ -1,6 +1,6 @@
 {
-  "updated": "2026-06-25 04:47:08 UTC",
-  "price": 0.94275,
+  "updated": "2026-06-25 04:52:13 UTC",
+  "price": 0.94515,
   "dry_run": false,
   "eur_balance": 9.68,
   "xrp_held": 0.0,
@@ -13,9 +13,9 @@
   "daily_trades": 0,
   "daily_starting": 9.68,
   "locked": false,
-  "signal": "HOLD",
-  "signal_conf": 0.0,
-  "signal_reason": "No clear signal",
+  "signal": "SELL",
+  "signal_conf": 0.6,
+  "signal_reason": "RSI overbought (56.0) | MACD bearish crossover | EMA fast < EMA slow (downtrend)",
   "trades": [
     {
       "time": "2026-06-24 18:13 UTC",
