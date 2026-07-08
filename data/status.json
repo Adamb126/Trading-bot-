@@ -1,98 +1,13 @@
 {
-  "updated": "2026-07-08 15:20:26 UTC",
-  "price": 0.94054,
-  "dry_run": false,
-  "eur_balance": 8.74,
-  "xrp_held": 0.0,
-  "avg_entry": 0.0,
-  "position_value": 0.0,
-  "unreal_pct": 0.0,
-  "total_value": 8.74,
-  "daily_pnl": 0.0,
-  "daily_pnl_pct": 0.0,
+  "updated": "waiting for first run",
+  "paper": true,
+  "cash": 0,
+  "positions_value": 0,
+  "total_value": 0,
+  "daily_pnl": 0,
+  "daily_pnl_pct": 0,
   "daily_trades": 0,
-  "daily_starting": 8.74,
   "locked": false,
-  "signal": "HOLD",
-  "signal_conf": 0.0,
-  "signal_reason": "No clear signal",
-  "trades": [
-    {
-      "time": "2026-07-06 09:40 UTC",
-      "side": "SELL",
-      "xrp": 8.8374,
-      "price": 0.9933,
-      "cost": 8.78
-    },
-    {
-      "time": "2026-07-05 21:24 UTC",
-      "side": "BUY",
-      "xrp": 8.8729,
-      "price": 0.9975,
-      "cost": 8.85
-    },
-    {
-      "time": "2026-07-05 09:43 UTC",
-      "side": "SELL",
-      "xrp": 9.0073,
-      "price": 0.987,
-      "cost": 8.89
-    },
-    {
-      "time": "2026-07-04 04:36 UTC",
-      "side": "BUY",
-      "xrp": 9.0434,
-      "price": 0.9978,
-      "cost": 9.02
-    },
-    {
-      "time": "2026-06-30 03:55 UTC",
-      "side": "SELL",
-      "xrp": 9.8933,
-      "price": 0.9155,
-      "cost": 9.06
-    },
-    {
-      "time": "2026-06-29 17:13 UTC",
-      "side": "BUY",
-      "xrp": 9.933,
-      "price": 0.9301,
-      "cost": 9.24
-    },
-    {
-      "time": "2026-06-28 05:27 UTC",
-      "side": "SELL",
-      "xrp": 10.1238,
-      "price": 0.9161,
-      "cost": 9.27
-    },
-    {
-      "time": "2026-06-25 05:22 UTC",
-      "side": "BUY",
-      "xrp": 10.1645,
-      "price": 0.9527,
-      "cost": 9.68
-    },
-    {
-      "time": "2026-06-24 18:13 UTC",
-      "side": "SELL",
-      "xrp": 10.3911,
-      "price": 0.9299,
-      "cost": 9.66
-    },
-    {
-      "time": "2026-06-24 16:37 UTC",
-      "side": "BUY",
-      "xrp": 10.4328,
-      "price": 0.9357,
-      "cost": 9.76
-    },
-    {
-      "time": "2026-06-24 13:27 UTC",
-      "side": "BUY",
-      "xrp": 10.4904,
-      "price": 0.9533,
-      "cost": 10.0
-    }
-  ]
+  "holdings": [],
+  "trades": []
 }

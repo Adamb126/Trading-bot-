@@ -3,192 +3,72 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XRP/EUR Trading Bot</title>
+<title>Stock Trading Bot</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --green:  #00e676;
-    --green2: #69f0ae;
-    --green3: #00c853;
-    --amber:  #ffca28;
-    --red:    #ef5350;
-    --blue:   #40c4ff;
-    --dim:    #2e7d32;
-    --dim2:   #1b5e20;
-    --bg:     #0a0f0a;
-    --bg2:    #0d140d;
-    --bg3:    #111911;
-    --border: #1b3a1f;
+    --green:#00e676; --green2:#69f0ae; --amber:#ffca28; --red:#ef5350; --blue:#40c4ff;
+    --dim:#2e7d32; --dim2:#1b5e20; --bg:#0a0f0a; --bg2:#0d140d; --bg3:#111911; --border:#1b3a1f;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing:border-box; margin:0; padding:0; }
   body {
-    background: var(--bg);
-    color: var(--green);
-    font-family: 'JetBrains Mono', 'Courier New', monospace;
-    font-size: 13px;
-    line-height: 1.6;
-    padding: 12px;
-    min-height: 100vh;
+    background:var(--bg); color:var(--green);
+    font-family:'JetBrains Mono','Courier New',monospace; font-size:13px; line-height:1.6;
+    padding:12px; min-height:100vh;
   }
-
-  /* ── Frame ── */
-  .frame { max-width: 1160px; margin: 0 auto; display: flex; flex-direction: column; gap: 1px; }
-
-  /* ── Title bar ── */
+  .frame { max-width:1160px; margin:0 auto; display:flex; flex-direction:column; gap:1px; }
   .titlebar {
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    padding: 8px 16px;
-    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    background:var(--bg3); border:1px solid var(--border); padding:8px 16px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
   }
-  .title { font-size: 14px; font-weight: 700; letter-spacing: 4px; color: var(--green2); }
-  .titlebar-right { display: flex; align-items: center; gap: 12px; }
-  #clock { font-size: 12px; color: var(--dim); font-weight: 300; }
-  .badge { font-size: 10px; padding: 2px 8px; border: 1px solid currentColor; letter-spacing: 2px; font-weight: 600; }
-  .badge.live { color: var(--green); animation: blink 2s infinite; }
-  .badge.err  { color: var(--red); }
-  @keyframes blink { 50% { opacity: 0.4; } }
-  .settings-btn {
-    background: none; border: 1px solid var(--border); color: var(--dim);
-    padding: 3px 10px; cursor: pointer; font-family: inherit; font-size: 12px;
-    letter-spacing: 1px;
+  .title { font-size:14px; font-weight:700; letter-spacing:4px; color:var(--green2); }
+  .titlebar-right { display:flex; align-items:center; gap:12px; }
+  #clock { font-size:12px; color:var(--dim); font-weight:300; }
+  .badge { font-size:10px; padding:2px 8px; border:1px solid currentColor; letter-spacing:2px; font-weight:600; }
+  .badge.live { color:var(--green); animation:blink 2s infinite; }
+  .badge.paper { color:var(--blue); }
+  .badge.err  { color:var(--red); }
+  @keyframes blink { 50% { opacity:0.4; } }
+  .row { display:grid; gap:1px; }
+  .row-3 { grid-template-columns:1fr 1fr 1fr; }
+  @media(max-width:700px){ .row-3 { grid-template-columns:1fr; } }
+  .panel { background:var(--bg2); border:1px solid var(--border); padding:12px 16px; }
+  .panel-label { font-size:9px; font-weight:700; letter-spacing:3px; color:var(--dim); margin-bottom:10px; text-transform:uppercase; }
+  .big { font-size:24px; font-weight:700; line-height:1.2; }
+  .big-sm { font-size:18px; font-weight:700; }
+  .sub { font-size:11px; color:var(--dim); margin-top:4px; font-weight:300; }
+  .pos { color:var(--green); } .neg { color:var(--red); } .neu { color:var(--amber); } .blue { color:var(--blue); }
+
+  /* Holdings table */
+  .hd-header, .hd-row {
+    display:grid; grid-template-columns:64px 1fr 80px 80px 90px 70px; gap:8px; align-items:center;
   }
-  .settings-btn:hover { border-color: var(--green); color: var(--green); }
-
-  /* ── Grid layouts ── */
-  .row { display: grid; gap: 1px; }
-  .row-3 { grid-template-columns: 1fr 1fr 1fr; }
-  .row-2 { grid-template-columns: 1fr 1fr; }
-  .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-  @media(max-width:800px){ .row-3,.row-4 { grid-template-columns: 1fr 1fr; } }
-  @media(max-width:500px){ .row-3,.row-4,.row-2 { grid-template-columns: 1fr; } }
-
-  /* ── Panel ── */
-  .panel {
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    padding: 12px 16px;
-  }
-  .panel-label {
-    font-size: 9px; font-weight: 700; letter-spacing: 3px;
-    color: var(--dim); margin-bottom: 10px; text-transform: uppercase;
-  }
-
-  /* ── Big number ── */
-  .big { font-size: 24px; font-weight: 700; line-height: 1.2; }
-  .big-sm { font-size: 18px; font-weight: 700; }
-  .sub { font-size: 11px; color: var(--dim); margin-top: 4px; font-weight: 300; }
-  .pos { color: var(--green); }
-  .neg { color: var(--red); }
-  .neu { color: var(--amber); }
-  .blue { color: var(--blue); }
-
-  /* ── KV pairs ── */
-  .kv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px,1fr)); gap: 10px 6px; }
-  .kv-label { font-size: 9px; letter-spacing: 2px; color: var(--dim); font-weight: 700; }
-  .kv-val   { font-size: 14px; font-weight: 600; margin-top: 2px; }
-
-  /* ── Signal bar ── */
-  .signal-row {
-    background: var(--bg2); border: 1px solid var(--border);
-    padding: 10px 16px;
-    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
-  }
-  .sig-label { font-size: 9px; letter-spacing: 3px; color: var(--dim); font-weight: 700; }
-  .sig-val   { font-size: 20px; font-weight: 700; letter-spacing: 4px; min-width: 64px; }
-  .sig-BUY   { color: var(--green); }
-  .sig-SELL  { color: var(--red); }
-  .sig-HOLD  { color: var(--amber); }
-  .conf-track { flex:1; min-width:80px; height:6px; background:var(--bg3); border:1px solid var(--border); border-radius:1px; }
-  .conf-fill  { height:100%; background:var(--green); transition: width .6s ease; border-radius:1px; }
-  .reason     { font-size: 11px; color: var(--green2); font-weight: 300; flex: 2; min-width: 120px; }
-
-  /* ── Holdings table ── */
-  .holding-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--bg3); }
-  .holding-row:last-child { border-bottom: none; }
-  .holding-asset { font-size: 13px; font-weight: 600; }
-  .holding-amount { font-size: 13px; color: var(--green2); font-weight: 300; }
-  .holding-value  { font-size: 12px; color: var(--dim); }
-
-  /* ── Trade history table ── */
-  .trade-header {
-    display: grid; grid-template-columns: 80px 52px 90px 90px 80px 80px;
-    gap: 6px; padding: 5px 0;
-    font-size: 9px; letter-spacing: 2px; color: var(--dim); font-weight: 700;
-    border-bottom: 1px solid var(--border);
-  }
-  .trade-row {
-    display: grid; grid-template-columns: 80px 52px 90px 90px 80px 80px;
-    gap: 6px; padding: 5px 0; font-size: 11px; font-weight: 300;
-    border-bottom: 1px solid var(--bg3);
-    align-items: center;
-  }
-  .trade-row:last-child { border-bottom: none; }
-  .trade-buy  { color: var(--green); font-weight: 600; }
-  .trade-sell { color: var(--red);   font-weight: 600; }
+  .hd-header { font-size:9px; letter-spacing:2px; color:var(--dim); font-weight:700; border-bottom:1px solid var(--border); padding:6px 0; }
+  .hd-row { padding:8px 0; border-bottom:1px solid var(--bg3); font-size:13px; }
+  .hd-row:last-child { border-bottom:none; }
+  .hd-sym { font-weight:700; font-size:14px; }
+  .pill { font-size:10px; font-weight:700; letter-spacing:1px; padding:2px 8px; border:1px solid currentColor; }
+  .pill-BUY { color:var(--green); } .pill-SELL { color:var(--red); } .pill-HOLD { color:var(--amber); }
   @media(max-width:700px){
-    .trade-header,.trade-row { grid-template-columns: 70px 44px 80px 80px 70px; }
-    .trade-header>:last-child,.trade-row>:last-child { display:none; }
+    .hd-header, .hd-row { grid-template-columns:56px 1fr 70px 70px; }
+    .hd-header>:nth-child(n+5), .hd-row>:nth-child(n+5) { display:none; }
   }
 
-  /* ── Candles ── */
-  .candle-row { display:flex; gap:8px; padding:3px 0; border-bottom:1px solid var(--bg3); font-size:11px; align-items:center; }
-  .c-time { color:var(--dim); width:42px; flex-shrink:0; font-weight:300; }
-  .c-dir  { width:14px; flex-shrink:0; }
-  .c-ohlc { flex:1; font-weight:300; color:var(--green2); }
-  .c-bar-wrap { width:50px; height:5px; background:var(--bg3); border:1px solid var(--border); }
-  .c-bar-fill { height:100%; }
-  .c-vol  { width:60px; text-align:right; color:var(--dim); font-size:10px; }
-
-  /* ── Footer ── */
+  /* Trades */
+  .trade-header, .trade-row { display:grid; grid-template-columns:110px 60px 56px 80px 80px 80px; gap:6px; padding:5px 0; }
+  .trade-header { font-size:9px; letter-spacing:2px; color:var(--dim); font-weight:700; border-bottom:1px solid var(--border); }
+  .trade-row { font-size:11px; font-weight:300; border-bottom:1px solid var(--bg3); align-items:center; }
+  .trade-row:last-child { border-bottom:none; }
+  .trade-buy { color:var(--green); font-weight:600; } .trade-sell { color:var(--red); font-weight:600; }
+  @media(max-width:700px){
+    .trade-header, .trade-row { grid-template-columns:96px 50px 46px 70px; }
+    .trade-header>:nth-child(n+5), .trade-row>:nth-child(n+5) { display:none; }
+  }
   .footer {
-    background: var(--bg3); border: 1px solid var(--border);
-    padding: 6px 16px; display: flex; justify-content: space-between; flex-wrap: wrap;
-    font-size: 10px; color: var(--dim2); letter-spacing: 1px; font-weight: 300;
+    background:var(--bg3); border:1px solid var(--border); padding:6px 16px;
+    display:flex; justify-content:space-between; flex-wrap:wrap;
+    font-size:10px; color:var(--dim2); letter-spacing:1px; font-weight:300;
   }
-
-  /* ── Settings modal ── */
-  .modal-bg {
-    display: none; position: fixed; inset: 0;
-    background: rgba(0,0,0,0.85); z-index: 1000;
-    align-items: center; justify-content: center;
-  }
-  .modal-bg.open { display: flex; }
-  .modal {
-    background: var(--bg3); border: 1px solid var(--green);
-    padding: 24px; width: 100%; max-width: 480px; margin: 16px;
-  }
-  .modal-title { font-size: 12px; font-weight: 700; letter-spacing: 3px; color: var(--green2); margin-bottom: 6px; }
-  .modal-sub { font-size: 11px; color: var(--dim); margin-bottom: 20px; font-weight: 300; }
-  .modal label { display: block; font-size: 10px; letter-spacing: 2px; color: var(--dim); margin-bottom: 4px; font-weight: 700; }
-  .modal input {
-    width: 100%; background: var(--bg); border: 1px solid var(--border);
-    color: var(--green); font-family: inherit; font-size: 12px; padding: 8px 10px;
-    margin-bottom: 14px; outline: none;
-  }
-  .modal input:focus { border-color: var(--green); }
-  .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
-  .btn {
-    flex: 1; padding: 8px; font-family: inherit; font-size: 11px; letter-spacing: 2px;
-    cursor: pointer; font-weight: 600; border: 1px solid;
-  }
-  .btn-primary { background: var(--green); color: var(--bg); border-color: var(--green); }
-  .btn-ghost   { background: none; color: var(--dim); border-color: var(--border); }
-  .btn-danger  { background: none; color: var(--red); border-color: var(--red); }
-  .modal-note  { font-size: 10px; color: var(--dim2); margin-top: 14px; font-weight: 300; line-height: 1.7; }
-
-  /* ── Lock screen for private panels ── */
-  .locked-msg {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    min-height: 60px; gap: 6px;
-    color: var(--dim); font-size: 11px; font-weight: 300; text-align: center;
-  }
-  .locked-msg .unlock-btn {
-    font-size: 10px; color: var(--green); background: none; border: 1px solid var(--green);
-    padding: 3px 12px; cursor: pointer; font-family: inherit; letter-spacing: 2px; margin-top: 4px;
-  }
-
-  /* scanlines */
   .scanline {
     pointer-events:none; position:fixed; inset:0;
     background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.04) 3px,rgba(0,0,0,.04) 4px);
@@ -198,454 +78,137 @@
 </head>
 <body>
 <div class="scanline"></div>
-
-<!-- Settings modal -->
-<div class="modal-bg" id="modal">
-  <div class="modal">
-    <div class="modal-title">API CREDENTIALS</div>
-    <div class="modal-sub">Stored only in your browser. Never sent anywhere except Kraken.</div>
-    <label>KRAKEN API KEY &nbsp;<span style="color:var(--dim);font-weight:300">(the shorter one, looks like: ABCDEF-GHIJK-LMNOPQ)</span></label>
-    <input type="text" id="inp-key" placeholder="XXXXXX-XXXXX-XXXXXX" autocomplete="off" spellcheck="false">
-    <label>KRAKEN PRIVATE KEY &nbsp;<span style="color:var(--dim);font-weight:300">(the long base64 string)</span></label>
-    <input type="password" id="inp-secret" placeholder="kQW9m3...long base64 string..." autocomplete="off" spellcheck="false">
-    <div class="modal-actions">
-      <button class="btn btn-primary" onclick="saveKeys()">SAVE &amp; CONNECT</button>
-      <button class="btn btn-ghost" onclick="closeModal()">CANCEL</button>
-      <button class="btn btn-danger" onclick="clearKeys()">CLEAR</button>
-    </div>
-    <div class="modal-note">
-      Required Kraken API permissions: Query Funds &nbsp;+&nbsp; Query Closed Orders &amp; Trades.<br>
-      Do NOT enable withdrawal permissions.
-    </div>
-  </div>
-</div>
-
 <div class="frame">
-  <!-- Title -->
   <div class="titlebar">
-    <span class="title">▪ XRP/EUR TRADING BOT</span>
+    <span class="title">▪ STOCK TRADING BOT</span>
     <div class="titlebar-right">
       <span id="clock">--:--:-- UTC</span>
+      <span id="mode-badge" class="badge paper">PAPER</span>
       <span id="status-badge" class="badge live">● LIVE</span>
-      <button class="settings-btn" onclick="openModal()">⚙ API KEYS</button>
     </div>
   </div>
 
-  <!-- Row 1: Price · Holdings · 24h P&L · Signal quick -->
-  <div class="row row-4">
+  <!-- Top row: totals -->
+  <div class="row row-3">
     <div class="panel">
-      <div class="panel-label">XRP / EUR PRICE</div>
-      <div class="big" id="price">-.----</div>
-      <div class="sub" id="change">24h change: —</div>
-      <div class="sub" id="bidask" style="margin-top:6px">Bid — &nbsp; Ask —</div>
-    </div>
-    <div class="panel" id="panel-holdings">
-      <div class="panel-label">MY HOLDINGS</div>
-      <div class="locked-msg" id="holdings-locked">
-        <span>API keys required</span>
-        <button class="unlock-btn" onclick="openModal()">ENTER KEYS</button>
-      </div>
-      <div id="holdings-data" style="display:none">
-        <div class="holding-row">
-          <span class="holding-asset">XRP</span>
-          <span class="holding-amount" id="h-xrp">—</span>
-          <span class="holding-value" id="h-xrp-eur">—</span>
-        </div>
-        <div class="holding-row">
-          <span class="holding-asset">EUR</span>
-          <span class="holding-amount" id="h-eur">—</span>
-          <span class="holding-value" style="color:var(--dim2)">cash</span>
-        </div>
-        <div class="holding-row" style="border-top:1px solid var(--border);margin-top:4px;padding-top:8px">
-          <span class="holding-asset" style="color:var(--dim)">TOTAL</span>
-          <span class="big-sm" id="h-total">—</span>
-        </div>
-      </div>
+      <div class="panel-label">TOTAL VALUE</div>
+      <div class="big" id="total">$—</div>
+      <div class="sub" id="cash">Cash: —</div>
+      <div class="sub" id="invested">Invested: —</div>
     </div>
     <div class="panel">
-      <div class="panel-label">24H RANGE</div>
-      <div class="big-sm pos" id="high24">H: -.----</div>
-      <div class="big-sm neg" id="low24" style="margin-top:4px">L: -.----</div>
-      <div class="sub" id="vol24" style="margin-top:6px">Vol: —</div>
+      <div class="panel-label">TODAY'S P&L</div>
+      <div class="big" id="pnl">—</div>
+      <div class="sub" id="pnl-pct">—</div>
+      <div class="sub" id="pnl-trades">—</div>
     </div>
-    <div class="panel" id="panel-pnl">
-      <div class="panel-label">24H GAIN / LOSS</div>
-      <div class="locked-msg" id="pnl-locked">
-        <span>API keys required</span>
-        <button class="unlock-btn" onclick="openModal()">ENTER KEYS</button>
-      </div>
-      <div id="pnl-data" style="display:none">
-        <div class="big" id="pnl-eur">—</div>
-        <div class="sub" id="pnl-pct" style="margin-top:4px">—</div>
-        <div class="sub" id="pnl-trades" style="margin-top:4px">—</div>
-      </div>
+    <div class="panel">
+      <div class="panel-label">STATUS</div>
+      <div class="big-sm" id="locked">—</div>
+      <div class="sub" id="watchlist">Watchlist: —</div>
+      <div class="sub" id="updated">Updated: —</div>
     </div>
   </div>
 
-  <!-- Row 2: Indicators + MACD -->
-  <div class="row row-2">
-    <div class="panel">
-      <div class="panel-label">INDICATORS — 15m</div>
-      <div class="kv-grid">
-        <div><div class="kv-label">RSI (14)</div><div class="kv-val" id="rsi">—</div></div>
-        <div><div class="kv-label">BB %</div><div class="kv-val" id="bbpct">—</div></div>
-        <div><div class="kv-label">EMA TREND</div><div class="kv-val" id="ema-trend">—</div></div>
-        <div><div class="kv-label">VOL RATIO</div><div class="kv-val" id="volratio">—</div></div>
-      </div>
+  <!-- Holdings / positions -->
+  <div class="panel" style="overflow-x:auto">
+    <div class="panel-label">POSITIONS &amp; SIGNALS</div>
+    <div class="hd-header">
+      <span>SYMBOL</span><span>SIGNAL</span><span>SHARES</span><span>ENTRY</span><span>PRICE</span><span>P&L</span>
     </div>
-    <div class="panel">
-      <div class="panel-label">MACD (12 / 26 / 9)</div>
-      <div class="kv-grid">
-        <div><div class="kv-label">MACD</div><div class="kv-val" id="macd">—</div></div>
-        <div><div class="kv-label">SIGNAL</div><div class="kv-val" id="macd-sig">—</div></div>
-        <div><div class="kv-label">HISTOGRAM</div><div class="kv-val" id="macd-hist">—</div></div>
-        <div><div class="kv-label">CROSSOVER</div><div class="kv-val" id="macd-cross">—</div></div>
-      </div>
+    <div id="holdings-rows">
+      <div class="sub" style="padding:12px 0">Waiting for bot to run…</div>
     </div>
   </div>
 
-  <!-- Signal bar -->
-  <div class="signal-row">
-    <span class="sig-label">SIGNAL</span>
-    <span class="sig-val sig-HOLD" id="sig-val">HOLD</span>
-    <span style="font-size:10px;color:var(--dim);font-weight:700;letter-spacing:2px">CONF</span>
-    <div class="conf-track"><div class="conf-fill" id="conf-fill" style="width:0%"></div></div>
-    <span id="conf-pct" style="font-size:12px;color:var(--dim);min-width:32px">0%</span>
-    <span class="reason" id="sig-reason">Waiting for data…</span>
-  </div>
-
-  <!-- Row 3: Trades + Candles -->
-  <div class="row row-2">
-    <div class="panel" style="overflow-x:auto">
-      <div class="panel-label" style="display:flex;justify-content:space-between">
-        <span>TRADE HISTORY</span><span id="trade-count" style="color:var(--dim2)">—</span>
-      </div>
-      <div id="trades-locked" class="locked-msg">
-        <span>API keys required</span>
-        <button class="unlock-btn" onclick="openModal()">ENTER KEYS</button>
-      </div>
-      <div id="trades-data" style="display:none">
-        <div class="trade-header">
-          <span>TIME</span><span>SIDE</span><span>AMOUNT</span><span>PRICE</span><span>COST</span><span>FEE</span>
-        </div>
-        <div id="trade-rows"></div>
-      </div>
+  <!-- Trade history -->
+  <div class="panel" style="overflow-x:auto">
+    <div class="panel-label" style="display:flex;justify-content:space-between">
+      <span>TRADE HISTORY</span><span id="trade-count" style="color:var(--dim2)">—</span>
     </div>
-
-    <div class="panel">
-      <div class="panel-label" style="display:flex;justify-content:space-between">
-        <span>RECENT CANDLES — 15m</span><span id="candle-count" style="color:var(--dim2)">—</span>
-      </div>
-      <div id="candle-rows"></div>
+    <div class="trade-header">
+      <span>TIME</span><span>SYMBOL</span><span>SIDE</span><span>SHARES</span><span>PRICE</span><span>VALUE</span>
+    </div>
+    <div id="trade-rows">
+      <div class="sub" style="padding:12px 0">No trades yet.</div>
     </div>
   </div>
 
   <div class="footer">
-    <span>KRAKEN PUBLIC API &nbsp;·&nbsp; 15m CANDLES &nbsp;·&nbsp; AUTO-REFRESH 30s</span>
+    <span>ALPACA · 15m CANDLES · AUTO-REFRESH 30s</span>
     <span id="last-update">LAST UPDATE: —</span>
   </div>
 </div>
 
 <script>
-// ── Local storage keys ─────────────────────────────────────────────────────
-const LS_KEY    = 'kraken_key';
-const LS_SECRET = 'kraken_secret';
-
-function getKeys() {
-  return { key: localStorage.getItem(LS_KEY) || '', secret: localStorage.getItem(LS_SECRET) || '' };
-}
-function isValidBase64(str) {
-  try { atob(str); return str.length > 0; }
-  catch { return false; }
-}
-function hasKeys() {
-  const { key, secret } = getKeys();
-  return key.length > 0 && isValidBase64(secret);
-}
-function openModal() {
-  const { key, secret } = getKeys();
-  document.getElementById('inp-key').value = key;
-  document.getElementById('inp-secret').value = secret;
-  document.getElementById('modal').classList.add('open');
-}
-function closeModal() { document.getElementById('modal').classList.remove('open'); }
-function saveKeys() {
-  const k = document.getElementById('inp-key').value.trim();
-  const s = document.getElementById('inp-secret').value.trim();
-  if (k) localStorage.setItem(LS_KEY, k);
-  if (s) localStorage.setItem(LS_SECRET, s);
-  closeModal();
-  refresh();
-}
-function clearKeys() {
-  localStorage.removeItem(LS_KEY);
-  localStorage.removeItem(LS_SECRET);
-  closeModal();
-  showLockedPanels();
-}
-function showLockedPanels() {
-  ['holdings-locked','pnl-locked','trades-locked'].forEach(id => { document.getElementById(id).style.display='flex'; });
-  ['holdings-data','pnl-data','trades-data'].forEach(id => { document.getElementById(id).style.display='none'; });
-}
-document.getElementById('modal').addEventListener('click', e => { if (e.target===document.getElementById('modal')) closeModal(); });
-
-// ── Kraken private API (browser-side HMAC-SHA512) ─────────────────────────
-async function krakenPrivate(endpoint, params = {}) {
-  const { key, secret } = getKeys();
-  if (!key || !secret) throw new Error('No API keys');
-
-  const nonce = (Date.now() * 1000).toString();
-  const postData = new URLSearchParams({ nonce, ...params });
-  const postStr  = postData.toString();
-
-  // SHA256 of nonce + postData
-  const msgBuf   = new TextEncoder().encode(nonce + postStr);
-  const sha256   = await crypto.subtle.digest('SHA-256', msgBuf);
-
-  // HMAC-SHA512 of (endpoint_bytes + sha256) using base64-decoded secret
-  if (!isValidBase64(secret)) throw new Error('Invalid API secret — must be the base64 string from Kraken');
-  const secretBytes = Uint8Array.from(atob(secret), c => c.charCodeAt(0));
-  const hmacKey = await crypto.subtle.importKey('raw', secretBytes, { name:'HMAC', hash:'SHA-512' }, false, ['sign']);
-  const epBytes = new TextEncoder().encode(endpoint);
-  const payload = new Uint8Array(epBytes.length + sha256.byteLength);
-  payload.set(epBytes, 0);
-  payload.set(new Uint8Array(sha256), epBytes.length);
-  const sig = await crypto.subtle.sign('HMAC', hmacKey, payload);
-  const sigB64 = btoa(String.fromCharCode(...new Uint8Array(sig)));
-
-  const resp = await fetch('https://api.kraken.com' + endpoint, {
-    method: 'POST',
-    headers: { 'API-Key': key, 'API-Sign': sigB64, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: postStr
-  });
-  const json = await resp.json();
-  if (json.error?.length) throw new Error(json.error[0]);
-  return json.result;
-}
-
-// ── Kraken public API ──────────────────────────────────────────────────────
-async function fetchTicker() {
-  const r = await fetch('https://api.kraken.com/0/public/Ticker?pair=XRPEUR');
-  const j = await r.json();
-  if (j.error?.length) throw new Error(j.error[0]);
-  const t = Object.values(j.result)[0];
-  return {
-    price: parseFloat(t.c[0]), bid: parseFloat(t.b[0]), ask: parseFloat(t.a[0]),
-    high:  parseFloat(t.h[1]), low: parseFloat(t.l[1]),
-    vol24: parseFloat(t.v[1]), open: parseFloat(t.o),
-  };
-}
-
-async function fetchOHLCV() {
-  const r = await fetch('https://api.kraken.com/0/public/OHLC?pair=XRPEUR&interval=15');
-  const j = await r.json();
-  if (j.error?.length) throw new Error(j.error[0]);
-  return Object.values(j.result).find(Array.isArray).slice(-200);
-}
-
-// ── Private: balance ───────────────────────────────────────────────────────
-async function fetchBalance() {
-  const b = await krakenPrivate('/0/private/Balance');
-  return {
-    xrp: parseFloat(b['XXRP'] || b['XRP'] || 0),
-    eur: parseFloat(b['ZEUR'] || b['EUR'] || 0),
-  };
-}
-
-// ── Private: trades last 24h ───────────────────────────────────────────────
-async function fetchTrades() {
-  const since = Math.floor(Date.now()/1000) - 86400;
-  const r = await krakenPrivate('/0/private/TradesHistory', { start: since });
-  const trades = Object.values(r.trades || {});
-  return trades
-    .filter(t => t.pair === 'XXRPZEUR' || t.pair === 'XRPEUR')
-    .sort((a,b) => b.time - a.time)
-    .slice(0, 20);
-}
-
-// ── Indicator math ─────────────────────────────────────────────────────────
-function emaArr(arr, span) {
-  const k = 2/(span+1), out = [...arr];
-  for (let i=1;i<out.length;i++) out[i] = arr[i]*k + out[i-1]*(1-k);
-  return out;
-}
-function calcRsi(closes, p=14) {
-  const d = closes.slice(1).map((v,i)=>v-closes[i]);
-  const ag = emaArr(d.map(x=>x>0?x:0), p);
-  const al = emaArr(d.map(x=>x<0?-x:0), p);
-  const n = d.length-1;
-  const rs = al[n]===0 ? 100 : ag[n]/al[n];
-  return 100 - 100/(1+rs);
-}
-function calcMacd(closes, f=12, s=26, sg=9) {
-  const ef=emaArr(closes,f), es=emaArr(closes,s);
-  const line=ef.map((v,i)=>v-es[i]);
-  const sig=emaArr(line,sg);
-  return { line, sig, hist:line.map((v,i)=>v-sig[i]) };
-}
-function calcBB(closes, p=20, m=2) {
-  const sl=closes.slice(-p), sma=sl.reduce((a,b)=>a+b,0)/p;
-  const std=Math.sqrt(sl.reduce((a,b)=>a+(b-sma)**2,0)/p);
-  const [up,lo]=[sma+m*std,sma-m*std];
-  return { pct: up===lo?0.5:(closes.at(-1)-lo)/(up-lo) };
-}
-function calcVolRatio(vols, p=20) {
-  const sma=vols.slice(-p-1,-1).reduce((a,b)=>a+b,0)/p;
-  return sma===0?1:vols.at(-1)/sma;
-}
-function generateSignal(closes, volumes) {
-  if (closes.length<50) return {signal:'HOLD',confidence:0,reason:'Insufficient data'};
-  const n = closes.length-1;
-  const rsiV=calcRsi(closes), bb=calcBB(closes), vr=calcVolRatio(volumes);
-  const {line,sig,hist}=calcMacd(closes);
-  const ef=emaArr(closes,9), es=emaArr(closes,21);
-  const emaTrend=ef[n]>es[n];
-  const crossedUp  =line[n-1]<=sig[n-1]&&line[n]>sig[n];
-  const crossedDown=line[n-1]>=sig[n-1]&&line[n]<sig[n];
-
-  let bs=0,ss=0,br=[],sr=[];
-  if(rsiV<35){bs++;br.push(`RSI oversold ${rsiV.toFixed(1)}`);}
-  if(rsiV>65){ss++;sr.push(`RSI overbought ${rsiV.toFixed(1)}`);}
-  if(line[n]>sig[n]&&hist[n]>0){bs++;br.push('MACD bullish');}
-  if(line[n]<sig[n]&&hist[n]<0){ss++;sr.push('MACD bearish');}
-  if(bb.pct<0.2){bs++;br.push(`BB lower ${bb.pct.toFixed(2)}`);}
-  if(bb.pct>0.8){ss++;sr.push(`BB upper ${bb.pct.toFixed(2)}`);}
-  if(emaTrend){bs++;br.push('EMA uptrend');}else{ss++;sr.push('EMA downtrend');}
-  if(vr>1.3){bs++;ss++;br.push(`Vol×${vr.toFixed(2)}`);sr.push(`Vol×${vr.toFixed(2)}`);}
-
-  const base={rsiV,bb,macd:line[n],macdSig:sig[n],macdHist:hist[n],emaTrend,vr,crossedUp,crossedDown};
-  if(bs>=3&&(crossedUp||bs>=4)) return{signal:'BUY', confidence:bs/5,reason:br.join(' · '),...base};
-  if(ss>=3&&(crossedDown||ss>=4)) return{signal:'SELL',confidence:ss/5,reason:sr.join(' · '),...base};
-  return{signal:'HOLD',confidence:0,reason:(bs>ss?br:sr).join(' · ')||'No clear signal',...base};
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-const f4=(n)=>typeof n==='number'?n.toFixed(4):'—';
-const f2=(n)=>typeof n==='number'?n.toFixed(2):'—';
 const sign=(n)=>n>=0?'+':'';
 const cc=(n)=>n>0?'pos':n<0?'neg':'neu';
 function set(id,text,cls){const e=document.getElementById(id);if(!e)return;e.textContent=text;if(cls!==undefined)e.className=cls;}
-function fmtTime(unix){const d=new Date(unix*1000);return d.getUTCHours().toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0');}
-function fmtDate(unix){const d=new Date(unix*1000);return (d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getDate().toString().padStart(2,'0')+' '+d.getUTCHours().toString().padStart(2,'0')+':'+d.getUTCMinutes().toString().padStart(2,'0');}
 
-// ── Main refresh ───────────────────────────────────────────────────────────
 async function refresh() {
+  document.getElementById('clock').textContent = new Date().toUTCString().slice(17,25)+' UTC';
   try {
-    document.getElementById('clock').textContent = new Date().toUTCString().slice(17,25)+' UTC';
-
-    const [ticker, ohlcv] = await Promise.all([fetchTicker(), fetchOHLCV()]);
-    const closes=ohlcv.map(c=>parseFloat(c[4]));
-    const vols  =ohlcv.map(c=>parseFloat(c[6]));
-    const result=generateSignal(closes, vols);
-
+    const r = await fetch('./data/status.json?t='+Date.now());
+    if (!r.ok) throw new Error('status.json not found yet');
+    const s = await r.json();
     set('status-badge','● LIVE','badge live');
 
-    // Price
-    const chg=(ticker.price-ticker.open)/ticker.open*100;
-    set('price', f4(ticker.price), 'big '+cc(chg));
-    set('change', `24h: ${sign(chg)}${f2(chg)}%`, 'sub '+cc(chg));
-    set('bidask', `Bid ${f4(ticker.bid)}  Ask ${f4(ticker.ask)}`);
-    set('high24', `H: ${f4(ticker.high)}`);
-    set('low24',  `L: ${f4(ticker.low)}`);
-    set('vol24',  `Vol: ${(ticker.vol24/1e6).toFixed(2)}M XRP`);
+    // Mode badge
+    const paper = s.paper !== false;
+    set('mode-badge', paper?'PAPER':'● LIVE MONEY', paper?'badge paper':'badge live');
 
-    // Indicators
-    if(result.rsiV!==undefined){
-      const rv=result.rsiV;
-      set('rsi',     f2(rv),    'kv-val '+(rv<35?'pos':rv>65?'neg':'neu'));
-      set('bbpct',   f2(result.bb.pct), 'kv-val '+(result.bb.pct<0.2?'pos':result.bb.pct>0.8?'neg':'neu'));
-      set('ema-trend', result.emaTrend?'BULL':'BEAR','kv-val '+(result.emaTrend?'pos':'neg'));
-      set('volratio',`${result.vr.toFixed(2)}×`,'kv-val '+(result.vr>1.3?'pos':'neu'));
-      set('macd',     f4(result.macd),    'kv-val '+cc(result.macd));
-      set('macd-sig', f4(result.macdSig), 'kv-val');
-      set('macd-hist',`${sign(result.macdHist)}${f4(result.macdHist)}`,'kv-val '+cc(result.macdHist));
-      set('macd-cross',result.crossedUp?'▲ BULLISH':result.crossedDown?'▼ BEARISH':'— NONE',
-          'kv-val '+(result.crossedUp?'pos':result.crossedDown?'neg':'neu'));
-    }
+    // Totals
+    set('total', '$'+(s.total_value||0).toFixed(2));
+    set('cash', 'Cash: $'+(s.cash||0).toFixed(2));
+    set('invested', 'Invested: $'+(s.positions_value||0).toFixed(2));
 
-    // Signal
-    const cp=Math.round((result.confidence||0)*100);
-    const se=document.getElementById('sig-val');
-    se.textContent=result.signal; se.className=`sig-val sig-${result.signal}`;
-    document.getElementById('conf-fill').style.width=cp+'%';
-    set('conf-pct',cp+'%');
-    set('sig-reason',result.reason||'—');
+    const pnl=s.daily_pnl||0, pnlPct=s.daily_pnl_pct||0;
+    set('pnl', `${sign(pnl)}$${Math.abs(pnl).toFixed(2)}`, 'big '+cc(pnl));
+    set('pnl-pct', `${sign(pnlPct)}${pnlPct.toFixed(2)}% today`, 'sub '+cc(pnlPct));
+    set('pnl-trades', `${s.daily_trades||0} trade${s.daily_trades!==1?'s':''} today`);
 
-    // Candles
-    const recent=ohlcv.slice(-14).reverse();
-    const maxV=Math.max(...recent.map(c=>parseFloat(c[6])));
-    set('candle-count',`${ohlcv.length} loaded`);
-    document.getElementById('candle-rows').innerHTML=recent.map(c=>{
-      const[ts,o,,, cl,,v]=c.map((x,i)=>i===0?x:parseFloat(x));
-      const bull=cl>=o, vp=maxV>0?v/maxV*100:0;
-      return`<div class="candle-row">
-        <span class="c-time">${fmtTime(ts)}</span>
-        <span class="c-dir ${bull?'pos':'neg'}">${bull?'▲':'▼'}</span>
-        <span class="c-ohlc">${cl.toFixed(4)} <span style="color:var(--dim);font-size:10px">O:${parseFloat(o).toFixed(4)}</span></span>
-        <div class="c-bar-wrap"><div class="c-bar-fill" style="width:${vp.toFixed(0)}%;background:${bull?'var(--green)':'var(--red)'}"></div></div>
-        <span class="c-vol">${(v/1000).toFixed(0)}K</span>
-      </div>`;
-    }).join('');
+    set('locked', s.locked?'⏸ LOCKED (daily limit)':'▶ ACTIVE', 'big-sm '+(s.locked?'neu':'pos'));
+    const syms=(s.holdings||[]).map(h=>h.symbol);
+    set('watchlist', 'Watchlist: '+(syms.join(', ')||'—'));
+    set('updated', 'Updated: '+(s.updated||'—'));
 
-    // Bot status data (written by the bot each tick, no API keys needed)
-    try {
-      const sr = await fetch('./data/status.json?t='+Date.now());
-      if (sr.ok) {
-        const s = await sr.json();
-        const xrpEur = (s.xrp_held||0) * ticker.price;
-        const total  = (s.eur_balance||0) + xrpEur;
+    // Holdings
+    const holds = s.holdings || [];
+    document.getElementById('holdings-rows').innerHTML = holds.length===0
+      ? '<div class="sub" style="padding:12px 0">No data yet.</div>'
+      : holds.map(h=>{
+          const up=h.unreal_pct||0;
+          const held=(h.qty||0)>0;
+          return `<div class="hd-row">
+            <span class="hd-sym">${h.symbol}</span>
+            <span><span class="pill pill-${h.signal}">${h.signal}</span></span>
+            <span>${held?h.qty:'—'}</span>
+            <span>${held?'$'+h.avg_entry:'—'}</span>
+            <span>$${(h.price||0).toFixed(2)}</span>
+            <span class="${held?cc(up):''}">${held?sign(up)+up.toFixed(2)+'%':'—'}</span>
+          </div>`;
+        }).join('');
 
-        // Holdings
-        document.getElementById('holdings-locked').style.display='none';
-        document.getElementById('holdings-data').style.display='block';
-        set('h-xrp',     (s.xrp_held||0).toFixed(4)+' XRP');
-        set('h-xrp-eur', '≈ €'+xrpEur.toFixed(2));
-        set('h-eur',     '€'+(s.eur_balance||0).toFixed(2));
-        set('h-total',   '€'+total.toFixed(2), 'big-sm pos');
-
-        // 24h P&L
-        const pnl=s.daily_pnl||0, pnlPct=s.daily_pnl_pct||0;
-        document.getElementById('pnl-locked').style.display='none';
-        document.getElementById('pnl-data').style.display='block';
-        set('pnl-eur',    `${sign(pnl)}€${Math.abs(pnl).toFixed(2)}`, 'big '+cc(pnl));
-        set('pnl-pct',    `${sign(pnlPct)}${pnlPct.toFixed(2)}% today`, 'sub '+cc(pnlPct));
-        set('pnl-trades', `${s.daily_trades||0} trade${s.daily_trades!==1?'s':''} today · updated ${s.updated||'—'}`);
-
-        // Trade history
-        const trades = s.trades || [];
-        set('trade-count', `${trades.length} recorded`);
-        document.getElementById('trades-locked').style.display='none';
-        document.getElementById('trades-data').style.display='block';
-        document.getElementById('trade-rows').innerHTML = trades.length===0
-          ? '<div style="color:var(--dim);font-size:11px;padding:8px 0;font-weight:300">No trades recorded yet — runs when bot executes a trade</div>'
-          : trades.map(t=>`<div class="trade-row">
-              <span style="color:var(--dim);font-size:10px">${t.time}</span>
-              <span class="trade-${t.side.toLowerCase()}">${t.side}</span>
-              <span>${t.xrp} XRP</span>
-              <span>€${t.price}</span>
-              <span>€${t.cost}</span>
-              <span style="color:var(--dim)">—</span>
-            </div>`).join('');
-      } else {
-        // File doesn't exist yet — bot hasn't run
-        ['holdings-locked','pnl-locked','trades-locked'].forEach(id=>{
-          const el=document.getElementById(id);
-          el.style.display='flex';
-          el.innerHTML='<span style="color:var(--dim);font-size:11px">Waiting for bot to run…</span>';
-        });
-      }
-    } catch(e) {
-      console.warn('Status file error:', e.message);
-    }
+    // Trades
+    const trades = s.trades || [];
+    set('trade-count', `${trades.length} recorded`);
+    document.getElementById('trade-rows').innerHTML = trades.length===0
+      ? '<div class="sub" style="padding:12px 0">No trades yet.</div>'
+      : trades.map(t=>`<div class="trade-row">
+          <span style="color:var(--dim);font-size:10px">${t.time}</span>
+          <span style="font-weight:600">${t.symbol||''}</span>
+          <span class="trade-${(t.side||'').toLowerCase()}">${t.side}</span>
+          <span>${t.qty}</span>
+          <span>$${t.price}</span>
+          <span>$${t.cost}</span>
+        </div>`).join('');
 
     set('last-update','LAST UPDATE: '+new Date().toTimeString().slice(0,8));
   } catch(e) {
-    console.error(e);
-    set('status-badge','ERROR','badge err');
-    set('sig-reason','API error: '+e.message);
+    set('status-badge','WAITING','badge err');
+    set('updated', e.message);
   }
 }
-
 refresh();
 setInterval(refresh, 30000);
 </script>

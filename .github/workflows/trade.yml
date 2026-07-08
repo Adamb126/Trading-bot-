@@ -1,8 +1,10 @@
-name: XRP/EUR Trading Bot
+name: Stock Trading Bot
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    # Every 15 min during US market hours (covers EST & EDT), Mon–Fri.
+    # 13:30–20:59 UTC. Bot self-checks is_market_open() and skips when closed.
+    - cron: '*/15 13-20 * * 1-5'
   workflow_dispatch:
 
 jobs:
@@ -22,17 +24,18 @@ jobs:
 
       - name: Run bot (single tick)
         env:
-          KRAKEN_API_KEY: ${{ secrets.KRAKEN_API_KEY }}
-          KRAKEN_API_SECRET: ${{ secrets.KRAKEN_API_SECRET }}
-          TRADE_AMOUNT_EUR: ${{ vars.TRADE_AMOUNT_EUR || '100' }}
+          ALPACA_API_KEY:    ${{ secrets.ALPACA_API_KEY }}
+          ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
+          ALPACA_PAPER:      ${{ vars.ALPACA_PAPER || 'true' }}
+          WATCHLIST:         ${{ vars.WATCHLIST || 'AAPL,MSFT,NVDA' }}
+          TRADE_AMOUNT_USD:  ${{ vars.TRADE_AMOUNT_USD || '100' }}
           DAILY_PROFIT_TARGET: ${{ vars.DAILY_PROFIT_TARGET || '0.10' }}
-          DAILY_STOP_LOSS: ${{ vars.DAILY_STOP_LOSS || '0.075' }}
+          DAILY_STOP_LOSS:     ${{ vars.DAILY_STOP_LOSS || '0.075' }}
           DRY_RUN: "false"
         run: |
           python - << 'PYEOF'
           from bot import TradingBot
-          bot = TradingBot()
-          bot.tick()
+          TradingBot().tick()
           PYEOF
 
       - name: Commit dashboard data
@@ -46,10 +49,3 @@ jobs:
           git add data/status.json
           git diff --cached --quiet || git commit -m "chore: update dashboard data"
           git push origin main
-
-      - name: Schedule next run
-        env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-        run: |
-          sleep 270
-          gh workflow run trade.yml --repo ${{ github.repository }} --ref main

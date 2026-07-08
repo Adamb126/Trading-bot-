@@ -1,8 +1,9 @@
 """
-XRP/EUR Trading Bot
-Exchanges: Kraken
-Strategy:  Multi-indicator confluence (RSI + MACD + Bollinger Bands + EMA + Volume)
-Risk:      10% daily profit target | 7.5% daily stop-loss
+Multi-stock trading bot (Alpaca).
+Trades a small watchlist of US stocks using multi-indicator confluence
+(RSI + MACD + Bollinger Bands + EMA + Volume).
+
+One independent position per symbol. Shared daily risk limits across the book.
 """
 
 import json
@@ -10,229 +11,215 @@ import logging
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import config
-from exchange import ExchangeClient
+from alpaca_client import AlpacaClient
 from indicators import compute_indicators, ohlcv_to_df
 from risk_manager import RiskManager
 from strategy import Signal, generate_signal
 
 DATA_FILE = Path("data/status.json")
 
-# ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
     level=getattr(logging, config.LOG_LEVEL),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    handlers=[
-        logging.FileHandler(config.LOG_FILE),
-        logging.StreamHandler(),
-    ],
+    handlers=[logging.FileHandler(config.LOG_FILE), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
 
+class Position:
+    """Tracks one symbol's open position."""
+    def __init__(self, symbol: str):
+        self.symbol = symbol
+        self.qty: float = 0.0
+        self.avg_entry: float = 0.0
+        self.cost_usd: float = 0.0
+
+
 class TradingBot:
     def __init__(self):
-        self.client = ExchangeClient()
+        self.client = AlpacaClient()
         self.risk = RiskManager()
+        self.positions: dict[str, Position] = {s: Position(s) for s in config.WATCHLIST}
 
-        # Open position tracking
-        self.position_xrp: float = 0.0      # XRP held
-        self.avg_entry_price: float = 0.0   # Average EUR cost per XRP
-        self.position_cost_eur: float = 0.0  # Total EUR spent on current position
+    # ── Data ──────────────────────────────────────────────────────────────────
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
-
-    def _get_current_price(self) -> float:
-        ticker = self.client.fetch_ticker(config.SYMBOL)
-        return float(ticker["last"])
-
-    def _fetch_df(self):
-        raw = self.client.fetch_ohlcv(config.SYMBOL, config.TIMEFRAME, config.LOOKBACK_CANDLES)
+    def _fetch_df(self, symbol: str):
+        raw = self.client.fetch_ohlcv(symbol, config.TIMEFRAME, config.LOOKBACK_CANDLES)
+        if not raw:
+            return None
         df = ohlcv_to_df(raw)
         return compute_indicators(df)
 
-    def _sync_position(self):
-        """Read actual XRP balance from the exchange."""
-        if not config.DRY_RUN:
-            self.position_xrp = self.client.get_free_balance(config.BASE_CURRENCY)
+    def _sync_position(self, pos: Position):
+        """Pull live share qty + avg entry from Alpaca."""
+        pos.qty = self.client.get_position_qty(pos.symbol)
+        if pos.qty > 0:
+            pos.avg_entry = self.client.get_position_avg_entry(pos.symbol)
+            pos.cost_usd = pos.qty * pos.avg_entry
 
-    # ── Order execution ───────────────────────────────────────────────────────
+    # ── Orders ────────────────────────────────────────────────────────────────
 
-    def _execute_buy(self, current_price: float):
-        eur_available = self.client.get_free_balance(config.QUOTE_CURRENCY)
-        amount_eur = min(config.TRADE_AMOUNT_EUR, eur_available)
-        if amount_eur < 5:
-            logger.warning("Not enough EUR balance to trade (minimum 5 EUR).")
+    def _execute_buy(self, pos: Position, price: float, cash: float):
+        amount = min(config.TRADE_AMOUNT_EUR, cash)
+        if amount < 1:
+            logger.warning(f"{pos.symbol}: not enough cash to buy (${cash:.2f}).")
             return
-
-        order = self.client.create_market_buy(config.SYMBOL, amount_eur, current_price)
+        order = self.client.create_market_buy(pos.symbol, amount, price)
         if order is None:
             return
+        filled_qty = order.get("amount") or (amount / price)
+        cost = order.get("cost") or amount
+        pos.qty += filled_qty
+        pos.avg_entry = price
+        pos.cost_usd += cost
+        self.risk.record_trade_open(cost)
+        self.record_trade(pos.symbol, "BUY", filled_qty, price, cost)
+        logger.info(f"{pos.symbol}: opened {filled_qty:.4f} sh @ ${price:.2f}")
 
-        filled_price = order.get("price") or current_price
-        filled_xrp = order.get("amount") or (amount_eur / current_price)
-        cost_eur = order.get("cost") or amount_eur
-
-        # Update position tracking (weighted average entry)
-        total_xrp = self.position_xrp + filled_xrp
-        if total_xrp > 0:
-            self.avg_entry_price = (
-                (self.avg_entry_price * self.position_xrp + filled_price * filled_xrp)
-                / total_xrp
-            )
-        self.position_xrp = total_xrp
-        self.position_cost_eur += cost_eur
-        self.risk.record_trade_open(cost_eur)
-        self.record_trade("BUY", filled_xrp, filled_price, cost_eur)
-        logger.info(
-            f"Position opened: {filled_xrp:.4f} XRP @ {filled_price:.4f} EUR "
-            f"| Total held: {self.position_xrp:.4f} XRP"
-        )
-
-    def _execute_sell(self, current_price: float, reason: str = "signal"):
-        if self.position_xrp <= 0:
-            logger.info("No position to sell.")
+    def _execute_sell(self, pos: Position, price: float, reason: str = "signal"):
+        if pos.qty <= 0:
             return
-
-        order = self.client.create_market_sell(config.SYMBOL, self.position_xrp, current_price)
+        order = self.client.create_market_sell(pos.symbol, pos.qty, price)
         if order is None:
             return
+        proceeds = order.get("cost") or (pos.qty * price)
+        self.risk.record_trade_close(pos.cost_usd, proceeds)
+        self.record_trade(pos.symbol, "SELL", pos.qty, price, proceeds)
+        logger.info(f"{pos.symbol}: closed ({reason}) {pos.qty:.4f} sh @ ${price:.2f} -> ${proceeds:.2f}")
+        pos.qty = 0.0
+        pos.avg_entry = 0.0
+        pos.cost_usd = 0.0
 
-        proceeds_eur = order.get("cost") or (self.position_xrp * current_price)
-        self.risk.record_trade_close(self.position_cost_eur, proceeds_eur)
-        self.record_trade("SELL", self.position_xrp, current_price, proceeds_eur)
+    # ── Status file (read by the dashboard) ───────────────────────────────────
 
-        logger.info(
-            f"Position closed ({reason}): {self.position_xrp:.4f} XRP @ {current_price:.4f} EUR "
-            f"| Proceeds: {proceeds_eur:.2f} EUR"
-        )
+    def _read_status(self) -> dict:
+        try:
+            return json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
+        except Exception:
+            return {}
 
-        # Reset position
-        self.position_xrp = 0.0
-        self.avg_entry_price = 0.0
-        self.position_cost_eur = 0.0
-
-    # ── Status file ───────────────────────────────────────────────────────────
-
-    def _write_status(self, current_price: float, signal, eur_balance: float):
+    def _write_status(self, cash: float, prices: dict, signals: dict):
         try:
             DATA_FILE.parent.mkdir(exist_ok=True)
-            unreal_pct = 0.0
-            if self.position_xrp > 0 and self.avg_entry_price > 0:
-                unreal_pct = (current_price - self.avg_entry_price) / self.avg_entry_price * 100
+            existing = self._read_status()
+
+            holdings = []
+            positions_value = 0.0
+            for sym, pos in self.positions.items():
+                price = prices.get(sym, 0.0)
+                mv = pos.qty * price
+                positions_value += mv
+                unreal = ((price - pos.avg_entry) / pos.avg_entry * 100) if pos.avg_entry > 0 else 0.0
+                sig = signals.get(sym)
+                holdings.append({
+                    "symbol":     sym,
+                    "qty":        round(pos.qty, 4),
+                    "avg_entry":  round(pos.avg_entry, 2),
+                    "price":      round(price, 2),
+                    "value":      round(mv, 2),
+                    "unreal_pct": round(unreal, 2),
+                    "signal":     sig.signal.value if sig else "HOLD",
+                    "reason":     sig.reason if sig else "",
+                })
+
             data = {
-                "updated":        datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
-                "price":          current_price,
-                "dry_run":        config.DRY_RUN,
-                "eur_balance":    round(eur_balance, 2),
-                "xrp_held":       round(self.position_xrp, 4),
-                "avg_entry":      round(self.avg_entry_price, 4),
-                "position_value": round(self.position_xrp * current_price, 2),
-                "unreal_pct":     round(unreal_pct, 2),
-                "total_value":    round(eur_balance + self.position_xrp * current_price, 2),
-                "daily_pnl":      round(self.risk.stats.realized_pnl_eur, 2),
-                "daily_pnl_pct":  round(self.risk.stats.realized_pnl_eur / self.risk.stats.starting_eur * 100
-                                        if self.risk.stats.starting_eur else 0, 2),
-                "daily_trades":   self.risk.stats.trade_count,
-                "daily_starting": round(self.risk.stats.starting_eur, 2),
-                "locked":         self.risk.stats.locked,
-                "signal":         signal.signal.value,
-                "signal_conf":    round(signal.confidence, 2),
-                "signal_reason":  signal.reason,
+                "updated":       datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+                "paper":         config.ALPACA_PAPER,
+                "cash":          round(cash, 2),
+                "positions_value": round(positions_value, 2),
+                "total_value":   round(cash + positions_value, 2),
+                "daily_pnl":     round(self.risk.stats.realized_pnl_eur, 2),
+                "daily_pnl_pct": round(self.risk.stats.realized_pnl_eur / self.risk.stats.starting_eur * 100
+                                       if self.risk.stats.starting_eur else 0, 2),
+                "daily_trades":  self.risk.stats.trade_count,
+                "locked":        self.risk.stats.locked,
+                "holdings":      holdings,
+                "trades":        existing.get("trades", []),
             }
-            # Append trade to history list
-            try:
-                existing = json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
-            except Exception:
-                existing = {}
-            data["trades"] = existing.get("trades", [])
             DATA_FILE.write_text(json.dumps(data, indent=2))
         except Exception as e:
             logger.warning(f"Failed to write status file: {e}")
 
-    def record_trade(self, side: str, xrp: float, price: float, cost: float):
+    def record_trade(self, symbol: str, side: str, qty: float, price: float, cost: float):
         try:
-            try:
-                existing = json.loads(DATA_FILE.read_text()) if DATA_FILE.exists() else {}
-            except Exception:
-                existing = {}
+            existing = self._read_status()
             trades = existing.get("trades", [])
             trades.insert(0, {
-                "time":  datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
-                "side":  side,
-                "xrp":   round(xrp, 4),
-                "price": round(price, 4),
-                "cost":  round(cost, 2),
+                "time":   datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                "symbol": symbol,
+                "side":   side,
+                "qty":    round(qty, 4),
+                "price":  round(price, 2),
+                "cost":   round(cost, 2),
             })
-            existing["trades"] = trades[:50]  # keep last 50
+            existing["trades"] = trades[:50]
             DATA_FILE.write_text(json.dumps(existing, indent=2))
         except Exception as e:
             logger.warning(f"Failed to record trade: {e}")
 
-    # ── Main loop tick ────────────────────────────────────────────────────────
-
-    def _load_position(self):
-        """Restore position state from status.json and sync XRP balance from exchange."""
-        self._sync_position()  # get actual XRP held from Kraken
-        if self.position_xrp > 0 and DATA_FILE.exists():
-            try:
-                saved = json.loads(DATA_FILE.read_text())
-                self.avg_entry_price = float(saved.get("avg_entry", 0.0))
-                self.position_cost_eur = float(saved.get("position_value", 0.0))
-            except Exception:
-                pass
+    # ── Tick ──────────────────────────────────────────────────────────────────
 
     def tick(self):
         try:
-            current_price = self._get_current_price()
-            eur_balance = self.client.get_free_balance(config.QUOTE_CURRENCY)
-
-            # Restore position from exchange + saved state on every tick
-            self._load_position()
-
-            # Initialise daily starting balance on first tick of the day
-            self.risk.set_starting_balance(eur_balance + self.position_xrp * current_price)
-
-            # Always check for emergency sell regardless of locked state
-            if self.position_xrp > 0:
-                if self.risk.should_emergency_sell(
-                    current_price, self.avg_entry_price, self.position_xrp
-                ):
-                    self._execute_sell(current_price, reason="stop-loss")
-                    return
-
-            if not self.risk.can_trade():
-                logger.info(f"Trading locked. {self.risk.summary()}")
+            if not config.DRY_RUN and not self.client.is_market_open():
+                logger.info("US market is closed. Skipping tick.")
                 return
 
-            df = self._fetch_df()
-            signal = generate_signal(df)
+            cash = self.client.get_cash()
 
-            logger.info(
-                f"Price: {current_price:.4f} EUR | Signal: {signal.signal.value} "
-                f"(conf={signal.confidence:.2f}) | {signal.reason}"
-            )
+            # Sync all live positions first, so starting balance is accurate
+            prices: dict[str, float] = {}
+            for pos in self.positions.values():
+                self._sync_position(pos)
 
-            if signal.signal == Signal.BUY and self.position_xrp == 0:
-                self._execute_buy(current_price)
+            # Estimate total equity for daily starting balance
+            total_equity = cash
+            for pos in self.positions.values():
+                px = self.client.fetch_ticker(pos.symbol)["last"]
+                prices[pos.symbol] = px
+                total_equity += pos.qty * px
+            self.risk.set_starting_balance(total_equity)
 
-            elif signal.signal == Signal.SELL and self.position_xrp > 0:
-                self._execute_sell(current_price, reason="signal")
+            signals: dict = {}
+            for sym, pos in self.positions.items():
+                price = prices[sym]
 
-            logger.debug(self.risk.summary())
-            self._write_status(current_price, signal, eur_balance)
+                # Emergency stop-loss check per symbol (always, even if locked)
+                if pos.qty > 0 and self.risk.should_emergency_sell(price, pos.avg_entry, pos.qty):
+                    self._execute_sell(pos, price, reason="stop-loss")
+                    continue
+
+                if not self.risk.can_trade():
+                    logger.info(f"Trading locked for the day. {self.risk.summary()}")
+                    break
+
+                df = self._fetch_df(sym)
+                if df is None:
+                    logger.warning(f"{sym}: no data, skipping.")
+                    continue
+                signal = generate_signal(df)
+                signals[sym] = signal
+                logger.info(f"{sym}: ${price:.2f} | {signal.signal.value} "
+                            f"(conf={signal.confidence:.2f}) | {signal.reason}")
+
+                if signal.signal == Signal.BUY and pos.qty == 0:
+                    self._execute_buy(pos, price, cash)
+                    cash = self.client.get_cash()  # refresh after spend
+                elif signal.signal == Signal.SELL and pos.qty > 0:
+                    self._execute_sell(pos, price, reason="signal")
+
+            self._write_status(cash, prices, signals)
 
         except Exception as e:
             logger.error(f"Error in tick: {e}", exc_info=True)
 
     def run(self, interval_seconds: int = 60):
         logger.info(
-            f"Starting XRP/EUR trading bot | "
-            f"Target: +{config.DAILY_PROFIT_TARGET*100:.0f}% | "
-            f"Stop-loss: -{config.DAILY_STOP_LOSS*100:.1f}% | "
-            f"Dry-run: {config.DRY_RUN}"
+            f"Starting multi-stock bot | Watchlist: {', '.join(config.WATCHLIST)} | "
+            f"{'PAPER' if config.ALPACA_PAPER else 'LIVE'} | "
+            f"Target +{config.DAILY_PROFIT_TARGET*100:.0f}% / Stop -{config.DAILY_STOP_LOSS*100:.1f}%"
         )
         while True:
             self.tick()
@@ -240,6 +227,4 @@ class TradingBot:
 
 
 if __name__ == "__main__":
-    bot = TradingBot()
-    # Run every 60 seconds (one tick per minute; analysis uses 15m candles)
-    bot.run(interval_seconds=60)
+    TradingBot().run(interval_seconds=60)

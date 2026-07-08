@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Optional
 import pandas as pd
 
-from exchange import ExchangeClient
+from alpaca_client import AlpacaClient as ExchangeClient
 from indicators import compute_indicators, ohlcv_to_df
 from strategy import Signal, TradeSignal, generate_signal
 import config
